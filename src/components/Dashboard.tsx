@@ -122,7 +122,23 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
               </button>
               )}
 
-        </div>
+              {/* 🔥 NUEVO BOTÓN: SOLO ADMINISTRATIVO EDITA LA PLANTILLA */}
+              {user.rol === 'ADMINISTRATIVO' && (
+                <button
+                  onClick={() => onNavigate('template-editor')}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 rounded-lg transition group"
+                >
+                  <div className="w-10 h-10 bg-purple-100 group-hover:bg-purple-200 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Formato Base TdR</p>
+                    <p className="text-sm text-gray-500">Modificar la plantilla principal</p>
+                  </div>
+                </button>
+              )}
+
+          </div>
         </div>
 
         {/* Lista de TdR */}
@@ -190,8 +206,8 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
                           <span>Ver</span>
                         </button>
 
-                        {/*  Botón Editar: SOLO CONTRATANTE y si no está aprobado */}
-                        {user.rol === 'CONTRATANTE' && tdr.estado == 'Observado'&& (
+                        {/* Botón Editar: SOLO CONTRATANTE y si no está aprobado */}
+                        {user.rol === 'CONTRATANTE' && tdr.estado !== 'Aprobado' && (
                           <button 
                             onClick={() => onNavigate('tdr-edit', String(tdr.id))}
                             className="text-orange-600 hover:text-orange-800 flex items-center gap-1"

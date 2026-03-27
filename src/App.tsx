@@ -5,6 +5,8 @@ import LocadoresPage from './components/LocadoresPage';
 import TdrFormPage from './components/TdrFormPage';
 import TdrDetailPage from './components/TdrDetailPage';
 import ValidacionPage from './components/ValidacionPage';
+// 🔥 1. IMPORTAR TdrTemplatePage
+import TdrTemplatePage from './components/TdrTemplatePage'; 
 import { User, Locador, TdR } from './types';
 
 const API_URL = 'http://localhost:4000/api';
@@ -70,7 +72,6 @@ export default function App() {
     setCurrentPage(page);
 
     if (id) {
-      // Agregamos 'tdr-edit' a la lista de validaciones
       if (page === 'tdr-detail' || page === 'validacion' || page === 'tdr-edit') {
         setSelectedTdR(id);
       } else if (page === 'locador-edit') {
@@ -114,12 +115,8 @@ export default function App() {
   ==========================*/
   const handleSaveTdR = async (tdr: TdR) => {
   try {
-
-    // 🔥 SOLO ES EDICIÓN SI ES NUMBER
     const isEditing = typeof tdr.id === 'number';
-
     const method = isEditing ? 'PUT' : 'POST';
-
     const url = isEditing
       ? `${API_URL}/tdrs/${tdr.id}`
       : `${API_URL}/tdrs`;
@@ -186,19 +183,16 @@ export default function App() {
         />
       )}
 
-      
-
-      {/* Este bloque se activará cuando onNavigate('locador-new') sea llamado */}
-      {/* En tu App.tsx */}
       {(currentPage === 'locadores' || currentPage === 'locador-new' || currentPage === 'locador-edit') && (
         <LocadoresPage
           user={currentUser}
-          currentPage={currentPage} // <--- ¡Pasa la prop aquí!
+          currentPage={currentPage}
           editingId={selectedLocador}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
         />
       )}
+      
       {(currentPage === 'tdr-new' || currentPage === 'tdr-edit') && (
         <TdrFormPage
           user={currentUser}
@@ -225,6 +219,15 @@ export default function App() {
           tdr={tdrs.find(t => t.id === selectedTdR)!}
           onNavigate={handleNavigate}
           onValidate={handleValidateTdR}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* 🔥 2. RENDERIZAR TdrTemplatePage */}
+      {currentPage === 'template-editor' && (
+        <TdrTemplatePage
+          user={currentUser}
+          onNavigate={handleNavigate}
           onLogout={handleLogout}
         />
       )}

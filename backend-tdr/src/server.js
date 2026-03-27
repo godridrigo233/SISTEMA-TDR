@@ -4,14 +4,32 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const app = express();
+
 const tdrRoutes = require("./routes/tdrs.routes");
 const locadoresRoutes = require("./routes/locadores.routes"); 
+const plantillaRoutes = require('./routes/plantilla.routes'); // 👈 Importación
+
 const JWT_SECRET = "claveprueba";
-app.use(cors());
-app.use(express.json());
-app.use("/api/tdrs", tdrRoutes);
+
+// =========================
+// 1. 🔥 MIDDLEWARES GLOBALES (Siempre primero)
+// =========================
+app.use(cors({
+  origin: 'http://localhost:3000', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json()); // Permite leer req.body en formato JSON
 app.use("/uploads", express.static("uploads"));
+
+// =========================
+// 2. 🔥 RUTAS (Siempre después de los middlewares)
+// =========================
+app.use('/api/plantilla', plantillaRoutes); // 👈 Ahora está en el lugar correcto
+app.use("/api/tdrs", tdrRoutes);
 app.use("/api/locadores", locadoresRoutes);
+
 // 🔹 Conexión a MySQL
 const pool = mysql.createPool({
   host: "localhost",
@@ -19,7 +37,6 @@ const pool = mysql.createPool({
   password: "root",
   database: "sistema_tdr"
 });
-
 
 // =========================
 // 🔐 LOGIN
