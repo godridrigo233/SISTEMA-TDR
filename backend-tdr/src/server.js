@@ -8,7 +8,7 @@ const app = express();
 const tdrRoutes = require("./routes/tdrs.routes");
 const locadoresRoutes = require("./routes/locadores.routes"); 
 const plantillaRoutes = require('./routes/plantilla.routes'); // 👈 Importación
-
+const contratantesRoutes = require('./routes/contratantes.routes');
 const JWT_SECRET = "claveprueba";
 
 // =========================
@@ -29,6 +29,7 @@ app.use("/uploads", express.static("uploads"));
 app.use('/api/plantilla', plantillaRoutes); // 👈 Ahora está en el lugar correcto
 app.use("/api/tdrs", tdrRoutes);
 app.use("/api/locadores", locadoresRoutes);
+app.use('/api/contratantes', contratantesRoutes);
 
 // 🔹 Conexión a MySQL
 const pool = mysql.createPool({
@@ -44,62 +45,91 @@ const pool = mysql.createPool({
 // =========================
 // 🔐 LOGIN
 // =========================
-app.post("/api/login", async (req, res) => {
+// ═══════════════════════════════════════════════════════════════════
+// REEMPLAZA el bloque app.post("/api/login", ...) en server.js
+// ═══════════════════════════════════════════════════════════════════
 
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    // ── 1. Buscar primero en t_contratantes_perfil ────────────────
+    const [contratanteRows] = await pool.query(
+      `SELECT cp.*, u.rol
+       FROM t_contratantes_perfil cp
+       JOIN t_usuarios u ON u.id = cp.usuario_id
+       WHERE cp.username = ?`,
+      [username]
+    );
 
-    const [rows] = await pool.query(
+    if (contratanteRows.length > 0) {
+      const contratante = contratanteRows[0];
+      const passwordMatch = await bcrypt.compare(password, contratante.password_hash);
+
+      if (!passwordMatch) {
+        return res.status(401).json({ message: "Contraseña incorrecta" });
+      }
+
+      const token = jwt.sign(
+        { id: contratante.usuario_id, username: contratante.username, rol: contratante.rol },
+        JWT_SECRET,
+        { expiresIn: "8h" }
+      );
+
+      return res.json({
+        success: true,
+        token,
+        user: {
+          id:       contratante.usuario_id,
+          username: contratante.username,
+          rol:      contratante.rol,
+          // Datos personales para mostrar en la app
+          nombre:   `${contratante.nombres} ${contratante.primer_apellido}`,
+          nombres:  contratante.nombres,
+          apellidos: `${contratante.primer_apellido} ${contratante.segundo_apellido}`,
+        }
+      });
+    }
+
+    // ── 2. Si no es contratante, buscar en t_usuarios (ADMINISTRATIVO) ──
+    const [adminRows] = await pool.query(
       "SELECT * FROM t_usuarios WHERE username = ?",
       [username]
     );
 
-    if (rows.length === 0) {
+    if (adminRows.length === 0) {
       return res.status(401).json({ message: "Usuario no encontrado" });
     }
 
-    const user = rows[0];
-
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    const admin = adminRows[0];
+    const passwordMatch = await bcrypt.compare(password, admin.password_hash);
 
     if (!passwordMatch) {
       return res.status(401).json({ message: "Contraseña incorrecta" });
     }
 
-    // 🔐 CREAR TOKEN
     const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        rol: user.rol
-      },
+      { id: admin.id, username: admin.username, rol: admin.rol },
       JWT_SECRET,
       { expiresIn: "8h" }
     );
 
-    res.json({
+    return res.json({
       success: true,
-      token, // 🔐 enviamos el token
+      token,
       user: {
-        id: user.id,
-        username: user.username,
-        rol: user.rol
+        id:       admin.id,
+        username: admin.username,
+        rol:      admin.rol,
+        nombre:   admin.username, // el admin no tiene perfil de nombre
       }
     });
 
   } catch (error) {
-
     console.error(error);
-
-    res.status(500).json({
-      message: "Error en el servidor"
-    });
-
+    res.status(500).json({ message: "Error en el servidor" });
   }
-
 });
-
 
 
 

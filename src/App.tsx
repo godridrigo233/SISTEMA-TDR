@@ -5,8 +5,9 @@ import LocadoresPage from './components/LocadoresPage';
 import TdrFormPage from './components/TdrFormPage';
 import TdrDetailPage from './components/TdrDetailPage';
 import ValidacionPage from './components/ValidacionPage';
-// 🔥 1. IMPORTAR TdrTemplatePage
-import TdrTemplatePage from './components/TdrTemplatePage'; 
+import TdrTemplatePage from './components/TdrTemplatePage';
+import MiPerfilPage from './components/Miperfilpage'; // ← NUEVO
+import NuevoContratantePage from './components/NuevoContratantePage';
 import { User, Locador, TdR } from './types';
 
 const API_URL = 'http://localhost:4000/api';
@@ -20,9 +21,6 @@ export default function App() {
   const [locadores, setLocadores] = useState<Locador[]>([]);
   const [tdrs, setTdRs] = useState<TdR[]>([]);
 
-  /* =========================
-     CARGA INICIAL DESDE BD
-  ==========================*/
   useEffect(() => {
     if (currentUser) {
       fetchLocadores();
@@ -50,9 +48,6 @@ export default function App() {
     }
   };
 
-  /* =========================
-     LOGIN / LOGOUT
-  ==========================*/
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     setCurrentPage('dashboard');
@@ -65,12 +60,8 @@ export default function App() {
     setSelectedLocador(null);
   };
 
-  /* =========================
-     NAVEGACIÓN
-  ==========================*/
   const handleNavigate = (page: string, id?: string) => {
     setCurrentPage(page);
-
     if (id) {
       if (page === 'tdr-detail' || page === 'validacion' || page === 'tdr-edit') {
         setSelectedTdR(id);
@@ -83,64 +74,45 @@ export default function App() {
     }
   };
 
-  /* =========================
-     GUARDAR LOCADOR (BD)
-  ==========================*/
   const handleSaveLocador = async (locador: Locador) => {
     try {
       const method = locador.id ? 'PUT' : 'POST';
       const url = locador.id
         ? `${API_URL}/locadores/${locador.id}`
         : `${API_URL}/locadores`;
-
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(locador),
       });
-
       if (!res.ok) throw new Error('Error guardando locador');
-
       await fetchLocadores();
       setCurrentPage('locadores');
-
     } catch (error) {
       console.error(error);
       alert('Error al guardar locador');
     }
   };
 
-  /* =========================
-     GUARDAR TDR (BD)
-  ==========================*/
   const handleSaveTdR = async (tdr: TdR) => {
-  try {
-    const isEditing = typeof tdr.id === 'number';
-    const method = isEditing ? 'PUT' : 'POST';
-    const url = isEditing
-      ? `${API_URL}/tdrs/${tdr.id}`
-      : `${API_URL}/tdrs`;
+    try {
+      const isEditing = typeof tdr.id === 'number';
+      const method = isEditing ? 'PUT' : 'POST';
+      const url = isEditing ? `${API_URL}/tdrs/${tdr.id}` : `${API_URL}/tdrs`;
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tdr),
+      });
+      if (!res.ok) throw new Error('Error guardando TDR');
+      await fetchTdRs();
+      setCurrentPage('dashboard');
+    } catch (error) {
+      console.error(error);
+      alert('Error al guardar TDR');
+    }
+  };
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tdr),
-    });
-
-    if (!res.ok) throw new Error('Error guardando TDR');
-
-    await fetchTdRs();
-    setCurrentPage('dashboard');
-
-  } catch (error) {
-    console.error(error);
-    alert('Error al guardar TDR');
-  }
-};
-
-  /* =========================
-     VALIDAR TDR (BD)
-  ==========================*/
   const handleValidateTdR = async (
     tdrId: string,
     accion: 'Validacion' | 'Observacion',
@@ -153,27 +125,22 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion, observaciones, usuarioAdminId }),
       });
-
       if (!res.ok) throw new Error('Error validando TDR');
-
       await fetchTdRs();
       setCurrentPage('dashboard');
-
     } catch (error) {
       console.error(error);
       alert('Error al validar TDR');
     }
   };
 
-  /* =========================
-     RENDER
-  ==========================*/
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {currentPage === 'dashboard' && (
         <Dashboard
           user={currentUser}
@@ -192,7 +159,7 @@ export default function App() {
           onLogout={handleLogout}
         />
       )}
-      
+
       {(currentPage === 'tdr-new' || currentPage === 'tdr-edit') && (
         <TdrFormPage
           user={currentUser}
@@ -223,7 +190,6 @@ export default function App() {
         />
       )}
 
-      {/* 🔥 2. RENDERIZAR TdrTemplatePage */}
       {currentPage === 'template-editor' && (
         <TdrTemplatePage
           user={currentUser}
@@ -231,6 +197,21 @@ export default function App() {
           onLogout={handleLogout}
         />
       )}
+      {currentPage === 'nuevo-contratante' && (
+     <NuevoContratantePage
+       user={currentUser}
+       onNavigate={handleNavigate}
+       onLogout={handleLogout}    
+     />
+   )}
+      {/* ← NUEVO: Página Mi Perfil */}
+      {currentPage === 'mi-perfil' && (
+        <MiPerfilPage
+          user={currentUser}
+          onNavigate={handleNavigate}
+        />
+      )}
+
     </div>
   );
 }

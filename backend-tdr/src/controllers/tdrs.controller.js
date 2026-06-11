@@ -52,119 +52,143 @@ exports.getTdrs = async (req, res) => {
 // ===============================
 // 🔹 OBTENER TDR POR ID
 // ===============================
-// ===============================
-// 🔹 OBTENER TDR POR ID (COMPLETO)
-// ===============================
-// ===============================
-// 🔹 OBTENER TDR POR ID (COMPLETO)
-// ===============================
+// ═══════════════════════════════════════════════════════════════════
+// REEMPLAZA solo exports.getTdrById en tdrs.controller.js
+// El resto del archivo (getTdrs, createTdr, updateTdr, validarTdr)
+// queda exactamente igual.
+// ═══════════════════════════════════════════════════════════════════
+
 exports.getTdrById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // TDR
-    // Modificado para hacer JOIN con la tabla de usuarios y traer el username
+    // ── TDR + perfil del contratante (quien creó el TDR) ─────────
     const [tdrRows] = await pool.query(`
       SELECT 
         t.*,
-        e.nombre AS equipo_nombre,
+        e.nombre   AS equipo_nombre,
         p.nombre_mes,
         p.anio,
-        u.username AS creado_por  
+        u.username AS creado_por,
+        -- Datos personales del CONTRATANTE para los documentos del expediente
+        cp.nombres             AS cnt_nombres,
+        cp.primer_apellido     AS cnt_primer_apellido,
+        cp.segundo_apellido    AS cnt_segundo_apellido,
+        cp.tipo_documento      AS cnt_tipo_documento,
+        cp.numero_documento    AS cnt_numero_documento,
+        cp.ruc                 AS cnt_ruc,
+        cp.correo_electronico  AS cnt_correo_electronico,
+        cp.telefono_celular    AS cnt_telefono_celular,
+        cp.domicilio           AS cnt_domicilio,
+        cp.banco               AS cnt_banco,
+        cp.cci                 AS cnt_cci,
+        cp.lugar_nacimiento    AS cnt_lugar_nacimiento,
+        cp.fecha_nacimiento    AS cnt_fecha_nacimiento,
+        cp.estado_civil        AS cnt_estado_civil,
+        cp.nacionalidad        AS cnt_nacionalidad
       FROM t_tdrs t
-      LEFT JOIN m_equipos e ON t.equipo_id = e.id
-      LEFT JOIN m_periodos p ON t.periodo_id = p.id
-      LEFT JOIN t_usuarios u ON t.usuario_creador_id = u.id 
+      LEFT JOIN m_equipos              e  ON t.equipo_id          = e.id
+      LEFT JOIN m_periodos             p  ON t.periodo_id          = p.id
+      LEFT JOIN t_usuarios             u  ON t.usuario_creador_id  = u.id
+      LEFT JOIN t_contratantes_perfil  cp ON t.usuario_creador_id  = cp.usuario_id
       WHERE t.id = ?
     `, [id]);
 
     if (tdrRows.length === 0) {
-      return res.status(404).json({ message: "TDR no encontrado" });
+      return res.status(404).json({ message: 'TDR no encontrado' });
     }
 
     const tdr = tdrRows[0];
 
-    // LOCADOR
+    // ── Locador: persona externa a contratar (m_locadores) ───────
     const [locadorRows] = await pool.query(
-      `SELECT * FROM m_locadores WHERE id = ?`,
+      'SELECT * FROM m_locadores WHERE id = ?',
       [tdr.locador_id]
     );
 
-    // FORMACIÓN
-    const [formacion] = await pool.query(`
-      SELECT *
-      FROM t_locador_formacion
-      WHERE locador_id = ?
-    `, [tdr.locador_id]);
+    // ── Construir subobjeto contratante desde columnas cnt_* ─────
+    // El frontend usa detalle.locador.apellidos, detalle.locador.nombres, etc.
+    // Aquí mapeamos el contratante con los mismos nombres para los documentos
+    const contratante = {
+      nombres:            tdr.cnt_nombres,
+      // apellidos como string único igual que m_locadores
+      apellidos:          [tdr.cnt_primer_apellido, tdr.cnt_segundo_apellido]
+                            .filter(Boolean).join(' '),
+      primer_apellido:    tdr.cnt_primer_apellido,
+      segundo_apellido:   tdr.cnt_segundo_apellido,
+      tipo_documento:     tdr.cnt_tipo_documento?.trim(),
+      numero_documento:   tdr.cnt_numero_documento,
+      ruc:                tdr.cnt_ruc,
+      correo_electronico: tdr.cnt_correo_electronico,
+      telefono_celular:   tdr.cnt_telefono_celular,
+      domicilio:          tdr.cnt_domicilio,
+      banco:              tdr.cnt_banco,
+      cci:                tdr.cnt_cci,
+      lugar_nacimiento:   tdr.cnt_lugar_nacimiento,
+      fecha_nacimiento:   tdr.cnt_fecha_nacimiento,
+      estado_civil:       tdr.cnt_estado_civil,
+      nacionalidad:       tdr.cnt_nacionalidad || 'Peruana',
+      username:           tdr.creado_por,
+    };
 
-    // EXPERIENCIA
-    const [experiencia] = await pool.query(`
-      SELECT *
-      FROM t_locador_experiencia
-      WHERE locador_id = ?
-    `, [tdr.locador_id]);
+    // Limpiar columnas cnt_* del objeto raíz
+    Object.keys(tdr)
+      .filter(k => k.startsWith('cnt_'))
+      .forEach(k => delete tdr[k]);
 
-    // CERTIFICACIONES
-    const [certificaciones] = await pool.query(`
-      SELECT *
-      FROM t_locador_certificaciones
-      WHERE locador_id = ?
-    `, [tdr.locador_id]);
-
-    // ACTIVIDADES
-    const [actividades] = await pool.query(`
-      SELECT *
-      FROM t_tdr_actividades
-      WHERE tdr_id = ?
-    `, [id]);
-
-    // ENTREGABLES
-    const [entregables] = await pool.query(`
-      SELECT *
-      FROM t_tdr_entregables
-      WHERE tdr_id = ?
-    `, [id]);
-
-    // DOCUMENTOS
-    const [documentosRows] = await pool.query(`
-      SELECT tipo_documento, ruta_archivo
-      FROM t_locador_documentos
-      WHERE tdr_id = ?
-    `, [id]);
-
-    //validaciones:
-    const [validaciones] = await pool.query(`
-      SELECT *
-      FROM t_tdr_historial_validaciones
-      WHERE tdr_id = ?
-    `, [id]);
-
+    // ── Subtablas — igual que antes ───────────────────────────────
+    const [formacion] = await pool.query(
+      'SELECT * FROM t_locador_formacion WHERE locador_id = ?',
+      [tdr.locador_id]
+    );
+    const [experiencia] = await pool.query(
+      'SELECT * FROM t_locador_experiencia WHERE locador_id = ?',
+      [tdr.locador_id]
+    );
+    const [certificaciones] = await pool.query(
+      'SELECT * FROM t_locador_certificaciones WHERE locador_id = ?',
+      [tdr.locador_id]
+    );
+    const [actividades] = await pool.query(
+      'SELECT * FROM t_tdr_actividades WHERE tdr_id = ?',
+      [id]
+    );
+    const [entregables] = await pool.query(
+      'SELECT * FROM t_tdr_entregables WHERE tdr_id = ?',
+      [id]
+    );
+    const [documentosRows] = await pool.query(
+      'SELECT tipo_documento, ruta_archivo FROM t_locador_documentos WHERE tdr_id = ?',
+      [id]
+    );
+    const [validaciones] = await pool.query(
+      'SELECT * FROM t_tdr_historial_validaciones WHERE tdr_id = ?',
+      [id]
+    );
     const documentos = {};
-
     documentosRows.forEach(doc => {
-      if (doc.tipo_documento === "CV_DOCUMENTADO") documentos.cv = doc.ruta_archivo;
-      if (doc.tipo_documento === "DNI_CE") documentos.dni = doc.ruta_archivo;
-      if (doc.tipo_documento === "RNP") documentos.rnp = doc.ruta_archivo;
-      if (doc.tipo_documento === "RUC") documentos.ruc = doc.ruta_archivo;
+      if (doc.tipo_documento === 'CV_DOCUMENTADO') documentos.cv  = doc.ruta_archivo;
+      if (doc.tipo_documento === 'DNI_CE')         documentos.dni = doc.ruta_archivo;
+      if (doc.tipo_documento === 'RNP')            documentos.rnp = doc.ruta_archivo;
+      if (doc.tipo_documento === 'RUC')            documentos.ruc = doc.ruta_archivo;
     });
 
     res.json({
       ...tdr,
-      locador: locadorRows[0] || null,
+      locador:      locadorRows[0] || null,   // persona externa (m_locadores)
+      contratante,                             // usuario que creó el TDR (t_contratantes_perfil)
       formacion,
       experiencia,
       certificaciones,
       actividades,
       entregables,
       documentos,
-      validaciones
+      validaciones,
     });
 
   } catch (error) {
-    console.error("Error obteniendo TDR:", error);
-    res.status(500).json({
-      message: "Error obteniendo TDR"
-    });
+    console.error('Error obteniendo TDR:', error);
+    res.status(500).json({ message: 'Error obteniendo TDR' });
   }
 };
 

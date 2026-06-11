@@ -1,0 +1,219 @@
+// src/controllers/contratantes.controller.js
+const pool = require('../config/db');
+const jwt  = require('jsonwebtoken');
+const JWT_SECRET = 'claveprueba'; // igual que en server.js
+
+function getUsuario(req) {
+  try {
+    const token = req.headers['authorization']?.split(' ')[1];
+    return token ? jwt.verify(token, JWT_SECRET) : null;
+  } catch { return null; }
+}
+
+function validar(data) {
+  const e = [];
+  if (!data.nombres?.trim())                e.push('nombres es requerido');
+  if ((data.nombres?.length ?? 0) > 40)     e.push('nombres: máximo 40 caracteres');
+  if (!data.primer_apellido?.trim())        e.push('primer_apellido es requerido');
+  if ((data.primer_apellido?.length ?? 0) > 40) e.push('primer_apellido: máximo 40 caracteres');
+  if (!data.segundo_apellido?.trim())       e.push('segundo_apellido es requerido');
+  if ((data.segundo_apellido?.length ?? 0) > 40) e.push('segundo_apellido: máximo 40 caracteres');
+  if (!['DNI','CE','PAS'].includes((data.tipo_documento||'').trim().toUpperCase()))
+    e.push('tipo_documento debe ser DNI, CE o PAS');
+  if (!/^\d{8}$/.test(data.numero_documento))
+    e.push('DNI debe tener exactamente 8 dígitos');
+  if (!data.correo_electronico || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo_electronico))
+    e.push('correo_electronico inválido');
+  if (data.ruc && !/^\d{11}$/.test(data.ruc))
+    e.push('RUC debe tener 11 dígitos');
+  if (data.cci && !/^\d{20}$/.test(data.cci))
+    e.push('CCI debe tener 20 dígitos');
+  return e;
+}
+
+// GET /api/contratantes/me
+exports.getMiPerfil = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u) return res.status(401).json({ message: 'No autenticado' });
+
+    const [rows] = await pool.query(
+      `SELECT cp.*, u.username, u.rol
+       FROM t_contratantes_perfil cp
+       JOIN t_usuarios u ON u.id = cp.usuario_id
+       WHERE cp.usuario_id = ?`,
+      [u.id]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ message: 'Perfil no encontrado. Complete sus datos en Mi Perfil.' });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('[contratantes] getMiPerfil:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// PUT /api/contratantes/me — crea o actualiza
+exports.upsertMiPerfil = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u) return res.status(401).json({ message: 'No autenticado' });
+
+    const data = req.body;
+    const errores = validar(data);
+    if (errores.length > 0) return res.status(400).json({ errores });
+
+    const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0,3);
+
+    await pool.query(
+      `INSERT INTO t_contratantes_perfil
+         (usuario_id, nombres, primer_apellido, segundo_apellido,
+          tipo_documento, numero_documento, ruc,
+          correo_electronico, telefono_celular, domicilio,
+          lugar_nacimiento, fecha_nacimiento, estado_civil, nacionalidad,
+          banco, cci)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         nombres           = VALUES(nombres),
+         primer_apellido   = VALUES(primer_apellido),
+         segundo_apellido  = VALUES(segundo_apellido),
+         tipo_documento    = VALUES(tipo_documento),
+         numero_documento  = VALUES(numero_documento),
+         ruc               = VALUES(ruc),
+         correo_electronico= VALUES(correo_electronico),
+         telefono_celular  = VALUES(telefono_celular),
+         domicilio         = VALUES(domicilio),
+         lugar_nacimiento  = VALUES(lugar_nacimiento),
+         fecha_nacimiento  = VALUES(fecha_nacimiento),
+         estado_civil      = VALUES(estado_civil),
+         nacionalidad      = VALUES(nacionalidad),
+         banco             = VALUES(banco),
+         cci               = VALUES(cci)`,
+      [
+        u.id,
+        data.nombres.trim(),
+        data.primer_apellido.trim(),
+        data.segundo_apellido.trim(),
+        tipo,
+        data.numero_documento,
+        data.ruc              || null,
+        data.correo_electronico.trim().toLowerCase(),
+        data.telefono_celular || null,
+        data.domicilio        || null,
+        data.lugar_nacimiento || null,
+        data.fecha_nacimiento || null,
+        data.estado_civil     || null,
+        data.nacionalidad     || 'Peruana',
+        data.banco            || null,
+        data.cci              || null,
+      ]
+    );
+
+    const [updated] = await pool.query(
+      'SELECT * FROM t_contratantes_perfil WHERE usuario_id = ?', [u.id]
+    );
+    res.json({ message: 'Perfil guardado correctamente', perfil: updated[0] });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(409).json({ message: 'Ese número de documento ya está registrado' });
+    console.error('[contratantes] upsertMiPerfil:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// GET /api/contratantes — solo ADMINISTRATIVO
+exports.getTodos = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u || u.rol !== 'ADMINISTRATIVO')
+      return res.status(403).json({ message: 'Solo administradores' });
+
+    const [rows] = await pool.query(
+      `SELECT cp.*, u.username, u.rol
+       FROM t_contratantes_perfil cp
+       JOIN t_usuarios u ON u.id = cp.usuario_id
+       ORDER BY cp.primer_apellido, cp.nombres`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[contratantes] getTodos:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+
+// ── POST /api/contratantes — solo ADMINISTRATIVO crea nuevos contratantes ──
+exports.crearContratante = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u || u.rol !== 'ADMINISTRATIVO')
+      return res.status(403).json({ message: 'Solo administradores pueden crear contratantes' });
+
+    const data = req.body;
+
+    // Validar credenciales
+    if (!data.username?.trim())
+      return res.status(400).json({ message: 'username es requerido' });
+    if (!data.password || data.password.length < 6)
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+
+    // Validar datos personales
+    const errores = validar(data);
+    if (errores.length > 0) return res.status(400).json({ errores });
+
+    // Hashear contraseña
+    const bcrypt = require('bcrypt');
+    const password_hash = await bcrypt.hash(data.password, 10);
+
+    // 1. Insertar en t_usuarios (solo el rol)
+    const [uResult] = await pool.query(
+      `INSERT INTO t_usuarios (username, password_hash, rol)
+       VALUES (?, ?, 'CONTRATANTE')`,
+      [data.username.trim(), password_hash]
+    );
+    const nuevoUsuarioId = uResult.insertId;
+
+    // 2. Insertar en t_contratantes_perfil (credenciales + datos personales)
+    const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0, 3);
+    await pool.query(
+      `INSERT INTO t_contratantes_perfil
+         (usuario_id, username, password_hash,
+          nombres, primer_apellido, segundo_apellido,
+          tipo_documento, numero_documento, ruc,
+          correo_electronico, telefono_celular, domicilio,
+          lugar_nacimiento, fecha_nacimiento, estado_civil, nacionalidad,
+          banco, cci)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        nuevoUsuarioId,
+        data.username.trim(),
+        password_hash,
+        data.nombres.trim(),
+        data.primer_apellido.trim(),
+        data.segundo_apellido.trim(),
+        tipo,
+        data.numero_documento,
+        data.ruc             || null,
+        data.correo_electronico.trim().toLowerCase(),
+        data.telefono_celular  || null,
+        data.domicilio         || null,
+        data.lugar_nacimiento  || null,
+        data.fecha_nacimiento  || null,
+        data.estado_civil      || null,
+        data.nacionalidad      || 'Peruana',
+        data.banco             || null,
+        data.cci               || null,
+      ]
+    );
+
+    res.status(201).json({ message: 'Contratante creado correctamente' });
+
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(409).json({ message: 'Ese nombre de usuario o documento ya existe' });
+    console.error('[contratantes] crearContratante:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
