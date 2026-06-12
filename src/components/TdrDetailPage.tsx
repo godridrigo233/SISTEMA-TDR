@@ -178,6 +178,7 @@ const EXPORT_CSS = `
   .eh  { background-color: #D3D3D3; font-weight: bold; text-align: center; color: #000; }
   .ehl { background-color: #D3D3D3; font-weight: bold; text-align: left; padding-left: 10px; color: #000; }
   .dd  { background-color: #fff; color: #000; font-weight: normal; padding: 8px 10px; }
+  .dd-green { background-color: #e8f5e3; color: #000; font-style: italic; padding: 8px 10px; }
   .dd-var { background-color: #fff; color: #000; font-weight: bold; padding: 8px 10px; }
   .excel-title { font-size: 13pt; font-weight: bold; text-align: center; border: 1.5px solid #000; padding: 10px; margin-bottom: 14px; background-color: #fff; }
   .fb  { font-weight: bold; }
@@ -599,6 +600,7 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
         .eh { background-color: #D3D3D3 !important; font-weight: bold; text-align: center; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .ehl { background-color: #D3D3D3 !important; font-weight: bold; text-align: left; padding-left: 10px !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .dd { background-color: #ffffff !important; color: #000; font-weight: normal; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .dd-green { background-color: #e8f5e3 !important; color: #000; font-style: italic; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .dd-var { background-color: #ffffff !important; color: #000; font-weight: bold; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cell-editable { background-color: #ffffff !important; color: #000; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .excel-title { font-size: 12pt; font-weight: bold; text-align: center; border: 1.5px solid #000 !important; padding: 10px; margin-bottom: 14px; background-color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -799,16 +801,8 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
               </div>
             </div>
 
-            {/* ① Denominación */}
+            {/* Sección 1 — Denominación + Descripción del Servicio + Finalidad Pública */}
             <TemplateBlock html={getAdminTemplate('tdr_denominacion')} replacements={replacements} />
-
-            {/* ① Descripción del Servicio */}
-            <TemplateBlock html={getAdminTemplate('tdr_descripcion')} replacements={replacements} />
-
-            {/* ② Finalidad Pública */}
-            {getAdminAplica('tdr_finalidad') && (
-              <TemplateBlock html={getAdminTemplate('tdr_finalidad')} replacements={replacements} />
-            )}
 
             {/* ② Colaborador coordinador — datos del CONTRATANTE que creó el TDR */}
             <table className="excel-table">
@@ -823,8 +817,8 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
                 <tr>
                   <td className="fb">PERSONAL DE CONTACTO</td>
                   <td className="dd">
-                    {detalle.contratante
-                      ? `${detalle.contratante.primer_apellido || ''} ${detalle.contratante.segundo_apellido || ''}, ${detalle.contratante.nombres || ''}`.trim()
+                    {detalle.contratante?.nombres
+                      ? `${detalle.contratante.apellidos || ''}, ${detalle.contratante.nombres}`.trim().replace(/^,\s*/, '')
                       : <CeldaEditable value={tdrEditable.planTrabajo} onChange={v => setTE('planTrabajo', v)} placeholder="Nombre del colaborador..." />
                     }
                   </td>

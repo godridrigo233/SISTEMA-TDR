@@ -1,7 +1,6 @@
-// src/controllers/contratantes.controller.js
 const pool = require('../config/db');
 const jwt  = require('jsonwebtoken');
-const JWT_SECRET = 'claveprueba'; // igual que en server.js
+const JWT_SECRET = 'claveprueba';
 
 function getUsuario(req) {
   try {
@@ -12,12 +11,12 @@ function getUsuario(req) {
 
 function validar(data) {
   const e = [];
-  if (!data.nombres?.trim())                e.push('nombres es requerido');
-  if ((data.nombres?.length ?? 0) > 40)     e.push('nombres: máximo 40 caracteres');
-  if (!data.primer_apellido?.trim())        e.push('primer_apellido es requerido');
+  if (!data.nombres?.trim())                    e.push('nombres es requerido');
+  if ((data.nombres?.length ?? 0) > 40)         e.push('nombres: máximo 40 caracteres');
+  if (!data.primer_apellido?.trim())            e.push('primer_apellido es requerido');
   if ((data.primer_apellido?.length ?? 0) > 40) e.push('primer_apellido: máximo 40 caracteres');
-  if (!data.segundo_apellido?.trim())       e.push('segundo_apellido es requerido');
-  if ((data.segundo_apellido?.length ?? 0) > 40) e.push('segundo_apellido: máximo 40 caracteres');
+  if (!data.segundo_apellido?.trim())           e.push('segundo_apellido es requerido');
+  if ((data.segundo_apellido?.length ?? 0) > 40)e.push('segundo_apellido: máximo 40 caracteres');
   if (!['DNI','CE','PAS'].includes((data.tipo_documento||'').trim().toUpperCase()))
     e.push('tipo_documento debe ser DNI, CE o PAS');
   if (!/^\d{8}$/.test(data.numero_documento))
@@ -46,7 +45,7 @@ exports.getMiPerfil = async (req, res) => {
     );
 
     if (rows.length === 0)
-      return res.status(404).json({ message: 'Perfil no encontrado. Complete sus datos en Mi Perfil.' });
+      return res.status(404).json({ message: 'Perfil no encontrado.' });
 
     res.json(rows[0]);
   } catch (err) {
@@ -55,7 +54,7 @@ exports.getMiPerfil = async (req, res) => {
   }
 };
 
-// PUT /api/contratantes/me — crea o actualiza
+// PUT /api/contratantes/me
 exports.upsertMiPerfil = async (req, res) => {
   try {
     const u = getUsuario(req);
@@ -65,7 +64,7 @@ exports.upsertMiPerfil = async (req, res) => {
     const errores = validar(data);
     if (errores.length > 0) return res.status(400).json({ errores });
 
-    const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0,3);
+    const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0, 3);
 
     await pool.query(
       `INSERT INTO t_contratantes_perfil
@@ -76,21 +75,21 @@ exports.upsertMiPerfil = async (req, res) => {
           banco, cci)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         nombres           = VALUES(nombres),
-         primer_apellido   = VALUES(primer_apellido),
-         segundo_apellido  = VALUES(segundo_apellido),
-         tipo_documento    = VALUES(tipo_documento),
-         numero_documento  = VALUES(numero_documento),
-         ruc               = VALUES(ruc),
-         correo_electronico= VALUES(correo_electronico),
-         telefono_celular  = VALUES(telefono_celular),
-         domicilio         = VALUES(domicilio),
-         lugar_nacimiento  = VALUES(lugar_nacimiento),
-         fecha_nacimiento  = VALUES(fecha_nacimiento),
-         estado_civil      = VALUES(estado_civil),
-         nacionalidad      = VALUES(nacionalidad),
-         banco             = VALUES(banco),
-         cci               = VALUES(cci)`,
+         nombres            = VALUES(nombres),
+         primer_apellido    = VALUES(primer_apellido),
+         segundo_apellido   = VALUES(segundo_apellido),
+         tipo_documento     = VALUES(tipo_documento),
+         numero_documento   = VALUES(numero_documento),
+         ruc                = VALUES(ruc),
+         correo_electronico = VALUES(correo_electronico),
+         telefono_celular   = VALUES(telefono_celular),
+         domicilio          = VALUES(domicilio),
+         lugar_nacimiento   = VALUES(lugar_nacimiento),
+         fecha_nacimiento   = VALUES(fecha_nacimiento),
+         estado_civil       = VALUES(estado_civil),
+         nacionalidad       = VALUES(nacionalidad),
+         banco              = VALUES(banco),
+         cci                = VALUES(cci)`,
       [
         u.id,
         data.nombres.trim(),
@@ -143,8 +142,7 @@ exports.getTodos = async (req, res) => {
   }
 };
 
-
-// ── POST /api/contratantes — solo ADMINISTRATIVO crea nuevos contratantes ──
+// POST /api/contratantes — solo ADMINISTRATIVO
 exports.crearContratante = async (req, res) => {
   try {
     const u = getUsuario(req);
@@ -153,21 +151,18 @@ exports.crearContratante = async (req, res) => {
 
     const data = req.body;
 
-    // Validar credenciales
     if (!data.username?.trim())
       return res.status(400).json({ message: 'username es requerido' });
     if (!data.password || data.password.length < 6)
       return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
 
-    // Validar datos personales
     const errores = validar(data);
     if (errores.length > 0) return res.status(400).json({ errores });
 
-    // Hashear contraseña
     const bcrypt = require('bcrypt');
     const password_hash = await bcrypt.hash(data.password, 10);
 
-    // 1. Insertar en t_usuarios (solo el rol)
+    // 1. Credenciales + rol → t_usuarios
     const [uResult] = await pool.query(
       `INSERT INTO t_usuarios (username, password_hash, rol)
        VALUES (?, ?, 'CONTRATANTE')`,
@@ -175,36 +170,33 @@ exports.crearContratante = async (req, res) => {
     );
     const nuevoUsuarioId = uResult.insertId;
 
-    // 2. Insertar en t_contratantes_perfil (credenciales + datos personales)
+    // 2. Datos personales → t_contratantes_perfil (sin username ni password)
     const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0, 3);
     await pool.query(
       `INSERT INTO t_contratantes_perfil
-         (usuario_id, username, password_hash,
-          nombres, primer_apellido, segundo_apellido,
+         (usuario_id, nombres, primer_apellido, segundo_apellido,
           tipo_documento, numero_documento, ruc,
           correo_electronico, telefono_celular, domicilio,
           lugar_nacimiento, fecha_nacimiento, estado_civil, nacionalidad,
           banco, cci)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         nuevoUsuarioId,
-        data.username.trim(),
-        password_hash,
         data.nombres.trim(),
         data.primer_apellido.trim(),
         data.segundo_apellido.trim(),
         tipo,
         data.numero_documento,
-        data.ruc             || null,
+        data.ruc              || null,
         data.correo_electronico.trim().toLowerCase(),
-        data.telefono_celular  || null,
-        data.domicilio         || null,
-        data.lugar_nacimiento  || null,
-        data.fecha_nacimiento  || null,
-        data.estado_civil      || null,
-        data.nacionalidad      || 'Peruana',
-        data.banco             || null,
-        data.cci               || null,
+        data.telefono_celular || null,
+        data.domicilio        || null,
+        data.lugar_nacimiento || null,
+        data.fecha_nacimiento || null,
+        data.estado_civil     || null,
+        data.nacionalidad     || 'Peruana',
+        data.banco            || null,
+        data.cci              || null,
       ]
     );
 

@@ -9,6 +9,9 @@ const tdrRoutes = require("./routes/tdrs.routes");
 const locadoresRoutes = require("./routes/locadores.routes"); 
 const plantillaRoutes = require('./routes/plantilla.routes'); // 👈 Importación
 const contratantesRoutes = require('./routes/contratantes.routes');
+const maestrosRoutes = require('./routes/maestros.routes');
+
+ 
 const JWT_SECRET = "claveprueba";
 
 // =========================
@@ -30,7 +33,7 @@ app.use('/api/plantilla', plantillaRoutes); // 👈 Ahora está en el lugar corr
 app.use("/api/tdrs", tdrRoutes);
 app.use("/api/locadores", locadoresRoutes);
 app.use('/api/contratantes', contratantesRoutes);
-
+app.use('/api/maestros', maestrosRoutes);
 // 🔹 Conexión a MySQL
 const pool = mysql.createPool({
   host: "localhost",
@@ -48,89 +51,49 @@ const pool = mysql.createPool({
 // ═══════════════════════════════════════════════════════════════════
 // REEMPLAZA el bloque app.post("/api/login", ...) en server.js
 // ═══════════════════════════════════════════════════════════════════
-
+ 
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
-
   try {
-    // ── 1. Buscar primero en t_contratantes_perfil ────────────────
-    const [contratanteRows] = await pool.query(
-      `SELECT cp.*, u.rol
-       FROM t_contratantes_perfil cp
-       JOIN t_usuarios u ON u.id = cp.usuario_id
-       WHERE cp.username = ?`,
-      [username]
-    );
-
-    if (contratanteRows.length > 0) {
-      const contratante = contratanteRows[0];
-      const passwordMatch = await bcrypt.compare(password, contratante.password_hash);
-
-      if (!passwordMatch) {
-        return res.status(401).json({ message: "Contraseña incorrecta" });
-      }
-
-      const token = jwt.sign(
-        { id: contratante.usuario_id, username: contratante.username, rol: contratante.rol },
-        JWT_SECRET,
-        { expiresIn: "8h" }
-      );
-
-      return res.json({
-        success: true,
-        token,
-        user: {
-          id:       contratante.usuario_id,
-          username: contratante.username,
-          rol:      contratante.rol,
-          // Datos personales para mostrar en la app
-          nombre:   `${contratante.nombres} ${contratante.primer_apellido}`,
-          nombres:  contratante.nombres,
-          apellidos: `${contratante.primer_apellido} ${contratante.segundo_apellido}`,
-        }
-      });
-    }
-
-    // ── 2. Si no es contratante, buscar en t_usuarios (ADMINISTRATIVO) ──
-    const [adminRows] = await pool.query(
+    const [rows] = await pool.query(
       "SELECT * FROM t_usuarios WHERE username = ?",
       [username]
     );
-
-    if (adminRows.length === 0) {
+    if (rows.length === 0)
       return res.status(401).json({ message: "Usuario no encontrado" });
-    }
-
-    const admin = adminRows[0];
-    const passwordMatch = await bcrypt.compare(password, admin.password_hash);
-
-    if (!passwordMatch) {
+ 
+    const user = rows[0];
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok)
       return res.status(401).json({ message: "Contraseña incorrecta" });
+ 
+    // Si es CONTRATANTE, cargar su nombre del perfil para el saludo
+    let nombre = user.nombres || user.username;
+    if (user.rol === 'CONTRATANTE') {
+      const [perfil] = await pool.query(
+        "SELECT nombres, primer_apellido FROM t_contratantes_perfil WHERE usuario_id = ?",
+        [user.id]
+      );
+      if (perfil.length > 0) nombre = perfil[0].nombres;
     }
-
+ 
     const token = jwt.sign(
-      { id: admin.id, username: admin.username, rol: admin.rol },
+      { id: user.id, username: user.username, rol: user.rol },
       JWT_SECRET,
       { expiresIn: "8h" }
     );
-
-    return res.json({
+ 
+    res.json({
       success: true,
       token,
-      user: {
-        id:       admin.id,
-        username: admin.username,
-        rol:      admin.rol,
-        nombre:   admin.username, // el admin no tiene perfil de nombre
-      }
+      user: { id: user.id, username: user.username, rol: user.rol, nombre }
     });
-
+ 
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 });
-
 
 
 // =========================

@@ -58,69 +58,68 @@ exports.getTdrs = async (req, res) => {
 // queda exactamente igual.
 // ═══════════════════════════════════════════════════════════════════
 
+
 exports.getTdrById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // ── TDR + perfil del contratante (quien creó el TDR) ─────────
     const [tdrRows] = await pool.query(`
-      SELECT 
+      SELECT
         t.*,
-        e.nombre   AS equipo_nombre,
+        e.nombre     AS equipo_nombre,
         p.nombre_mes,
         p.anio,
-        u.username AS creado_por,
-        -- Datos personales del CONTRATANTE para los documentos del expediente
-        cp.nombres             AS cnt_nombres,
-        cp.primer_apellido     AS cnt_primer_apellido,
-        cp.segundo_apellido    AS cnt_segundo_apellido,
-        cp.tipo_documento      AS cnt_tipo_documento,
-        cp.numero_documento    AS cnt_numero_documento,
-        cp.ruc                 AS cnt_ruc,
-        cp.correo_electronico  AS cnt_correo_electronico,
-        cp.telefono_celular    AS cnt_telefono_celular,
-        cp.domicilio           AS cnt_domicilio,
-        cp.banco               AS cnt_banco,
-        cp.cci                 AS cnt_cci,
-        cp.lugar_nacimiento    AS cnt_lugar_nacimiento,
-        cp.fecha_nacimiento    AS cnt_fecha_nacimiento,
-        cp.estado_civil        AS cnt_estado_civil,
-        cp.nacionalidad        AS cnt_nacionalidad
+        u.username   AS creado_por_username,
+
+        -- Datos del CONTRATANTE (quien creó el TDR) para la sección Colaborador
+        cp.nombres            AS cnt_nombres,
+        cp.primer_apellido    AS cnt_primer_apellido,
+        cp.segundo_apellido   AS cnt_segundo_apellido,
+        cp.correo_electronico AS cnt_correo_electronico,
+        cp.telefono_celular   AS cnt_telefono_celular,
+        cp.numero_documento   AS cnt_numero_documento,
+        cp.ruc                AS cnt_ruc,
+        cp.domicilio          AS cnt_domicilio,
+        cp.banco              AS cnt_banco,
+        cp.cci                AS cnt_cci,
+        cp.tipo_documento     AS cnt_tipo_documento,
+        cp.lugar_nacimiento   AS cnt_lugar_nacimiento,
+        cp.fecha_nacimiento   AS cnt_fecha_nacimiento,
+        cp.estado_civil       AS cnt_estado_civil,
+        cp.nacionalidad       AS cnt_nacionalidad
+
       FROM t_tdrs t
-      LEFT JOIN m_equipos              e  ON t.equipo_id          = e.id
-      LEFT JOIN m_periodos             p  ON t.periodo_id          = p.id
-      LEFT JOIN t_usuarios             u  ON t.usuario_creador_id  = u.id
-      LEFT JOIN t_contratantes_perfil  cp ON t.usuario_creador_id  = cp.usuario_id
+      LEFT JOIN m_equipos             e  ON t.equipo_id          = e.id
+      LEFT JOIN m_periodos            p  ON t.periodo_id          = p.id
+      LEFT JOIN t_usuarios            u  ON t.usuario_creador_id  = u.id
+      LEFT JOIN t_contratantes_perfil cp ON t.usuario_creador_id  = cp.usuario_id
       WHERE t.id = ?
     `, [id]);
 
-    if (tdrRows.length === 0) {
+    if (tdrRows.length === 0)
       return res.status(404).json({ message: 'TDR no encontrado' });
-    }
 
     const tdr = tdrRows[0];
 
-    // ── Locador: persona externa a contratar (m_locadores) ───────
+    // ── Locador: persona externa (m_locadores) — firma todos los docs ────
     const [locadorRows] = await pool.query(
       'SELECT * FROM m_locadores WHERE id = ?',
       [tdr.locador_id]
     );
 
-    // ── Construir subobjeto contratante desde columnas cnt_* ─────
-    // El frontend usa detalle.locador.apellidos, detalle.locador.nombres, etc.
-    // Aquí mapeamos el contratante con los mismos nombres para los documentos
-    const contratante = {
+    // ── Contratante: subobjeto con los datos del colaborador ─────────────
+    // apellidos = primer_apellido + segundo_apellido (para nombre completo)
+    const contratante = tdr.cnt_nombres ? {
       nombres:            tdr.cnt_nombres,
-      // apellidos como string único igual que m_locadores
-      apellidos:          [tdr.cnt_primer_apellido, tdr.cnt_segundo_apellido]
-                            .filter(Boolean).join(' '),
       primer_apellido:    tdr.cnt_primer_apellido,
       segundo_apellido:   tdr.cnt_segundo_apellido,
-      tipo_documento:     tdr.cnt_tipo_documento?.trim(),
-      numero_documento:   tdr.cnt_numero_documento,
-      ruc:                tdr.cnt_ruc,
+      apellidos:          [tdr.cnt_primer_apellido, tdr.cnt_segundo_apellido]
+                            .filter(Boolean).join(' '),
       correo_electronico: tdr.cnt_correo_electronico,
       telefono_celular:   tdr.cnt_telefono_celular,
+      numero_documento:   tdr.cnt_numero_documento,
+      tipo_documento:     tdr.cnt_tipo_documento?.trim(),
+      ruc:                tdr.cnt_ruc,
       domicilio:          tdr.cnt_domicilio,
       banco:              tdr.cnt_banco,
       cci:                tdr.cnt_cci,
@@ -128,15 +127,15 @@ exports.getTdrById = async (req, res) => {
       fecha_nacimiento:   tdr.cnt_fecha_nacimiento,
       estado_civil:       tdr.cnt_estado_civil,
       nacionalidad:       tdr.cnt_nacionalidad || 'Peruana',
-      username:           tdr.creado_por,
-    };
+      username:           tdr.creado_por_username,
+    } : null;
 
     // Limpiar columnas cnt_* del objeto raíz
     Object.keys(tdr)
-      .filter(k => k.startsWith('cnt_'))
+      .filter(k => k.startsWith('cnt_') || k === 'creado_por_username')
       .forEach(k => delete tdr[k]);
 
-    // ── Subtablas — igual que antes ───────────────────────────────
+    // ── Subtablas ─────────────────────────────────────────────────────────
     const [formacion] = await pool.query(
       'SELECT * FROM t_locador_formacion WHERE locador_id = ?',
       [tdr.locador_id]
@@ -148,23 +147,21 @@ exports.getTdrById = async (req, res) => {
     const [certificaciones] = await pool.query(
       'SELECT * FROM t_locador_certificaciones WHERE locador_id = ?',
       [tdr.locador_id]
-    );
+    ).catch(() => [[]]);  // tabla opcional
+
     const [actividades] = await pool.query(
-      'SELECT * FROM t_tdr_actividades WHERE tdr_id = ?',
-      [id]
+      'SELECT * FROM t_tdr_actividades WHERE tdr_id = ?', [id]
     );
     const [entregables] = await pool.query(
-      'SELECT * FROM t_tdr_entregables WHERE tdr_id = ?',
-      [id]
+      'SELECT * FROM t_tdr_entregables WHERE tdr_id = ?', [id]
     );
     const [documentosRows] = await pool.query(
-      'SELECT tipo_documento, ruta_archivo FROM t_locador_documentos WHERE tdr_id = ?',
-      [id]
+      'SELECT tipo_documento, ruta_archivo FROM t_locador_documentos WHERE tdr_id = ?', [id]
     );
     const [validaciones] = await pool.query(
-      'SELECT * FROM t_tdr_historial_validaciones WHERE tdr_id = ?',
-      [id]
+      'SELECT * FROM t_tdr_historial_validaciones WHERE tdr_id = ?', [id]
     );
+
     const documentos = {};
     documentosRows.forEach(doc => {
       if (doc.tipo_documento === 'CV_DOCUMENTADO') documentos.cv  = doc.ruta_archivo;
@@ -175,8 +172,8 @@ exports.getTdrById = async (req, res) => {
 
     res.json({
       ...tdr,
-      locador:      locadorRows[0] || null,   // persona externa (m_locadores)
-      contratante,                             // usuario que creó el TDR (t_contratantes_perfil)
+      locador:      locadorRows[0] || null,
+      contratante,                              // null si no tiene perfil completo
       formacion,
       experiencia,
       certificaciones,
@@ -361,17 +358,18 @@ exports.createTdr = async (req, res) => {
     for(const exp of experiencias){
 
       await connection.query(`
-        INSERT INTO t_locador_experiencia
-        (locador_id,tipo_experiencia,entidad_empresa,descripcion_trabajo,fecha_inicio,fecha_fin)
-        VALUES (?,?,?,?,?,?)
-      `,[
-        locadorFinalId,
-        exp.tipoExperiencia || "General",
-        exp.nombreEntidad || "",
-        exp.descripcionTrabajo || "",
-        exp.fechaInicio || null,
-        exp.fechaFin || null
-      ]);
+      INSERT INTO t_locador_experiencia
+      (locador_id, tipo_experiencia, entidad_empresa, cargo, descripcion_trabajo, fecha_inicio, fecha_fin)
+      VALUES (?,?,?,?,?,?,?)
+    `, [
+      locadorFinalId,
+      exp.tipoExperiencia || "General",
+      exp.nombreEntidad || "",
+      exp.cargo || "",              
+      exp.descripcionTrabajo || "",
+      exp.fechaInicio || null,
+      exp.fechaFin || null
+    ]);
 
     }
 
@@ -618,12 +616,13 @@ exports.updateTdr = async (req, res) => {
     for (const exp of experiencias) {
       await connection.query(`
         INSERT INTO t_locador_experiencia
-        (locador_id, tipo_experiencia, entidad_empresa, descripcion_trabajo, fecha_inicio, fecha_fin)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (locador_id, tipo_experiencia, entidad_empresa, cargo, descripcion_trabajo, fecha_inicio, fecha_fin)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [
-        locadorId, 
-        exp.tipoExperiencia || "General", 
-        exp.nombreEntidad || "", 
+        locadorId,
+        exp.tipoExperiencia || "General",
+        exp.nombreEntidad || "",
+        exp.cargo || "",              // ← NUEVO
         exp.descripcionTrabajo || "",
         exp.fechaInicio || null,
         exp.fechaFin || null
