@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner@2.0.3';
 import { User, TdR } from '../types';
 // Utilidades de plantilla en archivo separado para cumplir con Vite Fast Refresh.
 import {
@@ -228,6 +229,47 @@ const EXPORT_CSS = `
   .dashed-box, .bdbD, .bdrD { border-style: solid !important; }
 `;
 
+// html2canvas no entiende oklch()/color() (usados por Tailwind v4). El
+// <canvas> del navegador sí resuelve cualquier color CSS válido y lo
+// serializa siempre como rgb()/hex al leerlo de vuelta — lo usamos para
+// "traducir" cualquier color moderno a algo que html2canvas pueda pintar.
+const _colorCanvasCtx = document.createElement('canvas').getContext('2d');
+const toSafeColor = (input: string): string => {
+  if (!_colorCanvasCtx || !input || !input.includes('oklch')) return input;
+  try {
+    _colorCanvasCtx.fillStyle = '#000000';
+    _colorCanvasCtx.fillStyle = input;
+    return _colorCanvasCtx.fillStyle;
+  } catch {
+    return '#000000';
+  }
+};
+
+// Cualquier propiedad computada puede traer oklch() (color, background,
+// border, outline, box-shadow, text-decoration, fill/stroke de SVG, etc).
+// En vez de listar propiedades a mano, revisamos TODAS las que expone
+// getComputedStyle y reescribimos como inline style las que usan oklch.
+const neutralizarColoresModernos = (root: HTMLElement) => {
+  const elementos = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+  for (const el of elementos) {
+    const cs = window.getComputedStyle(el);
+    for (let i = 0; i < cs.length; i++) {
+      const prop = cs[i];
+      const val = cs.getPropertyValue(prop);
+      if (val && val.includes('oklch')) {
+        el.style.setProperty(prop, toSafeColor(val), 'important');
+      }
+    }
+  }
+};
+
+/** Evita que un documento colgado (p.ej. por un color no soportado) bloquee todo el export. */
+const conTimeout = <T,>(promise: Promise<T>, ms: number, etiqueta: string): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Tiempo de espera agotado generando ${etiqueta}`)), ms)),
+  ]);
+
 const exportarExpedienteZIP = async (detalle: any) => {
   const codigoTdr   = detalle.codigo_unico || 'TDR';
   const nombreLoc   = detalle.locador?.nombres?.split(' ')?.[0] || 'Locador';
@@ -255,17 +297,19 @@ const exportarExpedienteZIP = async (detalle: any) => {
   try {
     html2pdf = (await import('html2pdf.js')).default;
     JSZip    = (await import('jszip')).default;
-  } catch {
-    alert('Faltan dependencias. Ejecuta:\nnpm install html2pdf.js jszip');
+  } catch (err) {
+    console.error('Error cargando dependencias de exportación:', err);
+    toast.error('No se pudieron cargar las librerías de exportación a PDF.');
     return;
   }
 
   if (!document.getElementById(documentos[0].id)) {
-    alert('Abre el panel de Vista Previa antes de exportar.');
+    toast.error('Abre el panel de Vista Previa antes de exportar.');
     return;
   }
 
   const zip = new JSZip();
+  const fallidos: string[] = [];
 
   // Contenedor temporal fuera de pantalla
   const wrapper = document.createElement('div');
@@ -362,16 +406,18 @@ const exportarExpedienteZIP = async (detalle: any) => {
       });
 
       wrapper.appendChild(clon);
+      neutralizarColoresModernos(clon);
 
       // Esperar render
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       await new Promise(r => setTimeout(r, 100));
 
       try {
-        const pdfBlob: Blob = await html2pdf()
-          .set(baseOpt)
-          .from(clon)
-          .outputPdf('blob');
+        const pdfBlob: Blob = await conTimeout(
+          html2pdf().set(baseOpt).from(clon).outputPdf('blob') as Promise<Blob>,
+          20000,
+          doc.nombre
+        );
 
         zip.file(
           `${doc.nombre}_${codigoTdr}_${nombreLoc}_${apellidoLoc}.pdf`,
@@ -379,9 +425,14 @@ const exportarExpedienteZIP = async (detalle: any) => {
         );
       } catch (docErr) {
         console.warn(`Error en ${doc.nombre}:`, docErr);
+        fallidos.push(doc.nombre);
       }
 
       wrapper.removeChild(clon);
+    }
+
+    if (fallidos.length === documentos.length) {
+      throw new Error('No se pudo generar ningún documento del expediente.');
     }
 
     const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -393,6 +444,10 @@ const exportarExpedienteZIP = async (detalle: any) => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    if (fallidos.length > 0) {
+      toast.warning(`No se pudieron generar: ${fallidos.join(', ')}`);
+    }
   } finally {
     document.body.removeChild(wrapper);
   }
@@ -558,7 +613,16 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
     // Abrir el preview para que los elementos group-doc-* existan en el DOM
     setPreviewOpen(true);
     // Esperar a que React renderice el panel antes de recopilar el HTML
-    setTimeout(() => exportarExpedienteZIP(detalle), 600);
+    setTimeout(() => {
+      toast.promise(exportarExpedienteZIP(detalle), {
+        loading: 'Generando expediente en PDF...',
+        success: 'Expediente descargado correctamente',
+        error: (err) =>
+          err?.message?.includes('oklch') || err?.message?.includes('color')
+            ? 'Este navegador no puede generar el ZIP de PDFs separados. Usa "Imprimir / Guardar PDF único" en su lugar.'
+            : err?.message || 'Error al generar el expediente PDF',
+      });
+    }, 600);
   };
   const descargarPDFClasico = () => { setActiveModal(null); setPreviewOpen(true); setTimeout(() => window.print(), 500); };
 

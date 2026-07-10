@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast, Toaster } from 'sonner@2.0.3';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import LocadoresPage from './components/LocadoresPage';
@@ -20,32 +21,55 @@ export default function App() {
 
   const [locadores, setLocadores] = useState<Locador[]>([]);
   const [tdrs, setTdRs] = useState<TdR[]>([]);
+  const [tdrFilters, setTdrFilters] = useState<{ search?: string; estado?: string }>({});
 
   useEffect(() => {
     if (currentUser) {
       fetchLocadores();
-      fetchTdRs();
+      fetchTdRs(tdrFilters);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
+
+  // Auto-refresh: mantiene la lista de TDR al día sin que el usuario recargue.
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => fetchTdRs(tdrFilters), 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, tdrFilters]);
 
   const fetchLocadores = async () => {
     try {
       const res = await fetch(`${API_URL}/locadores`);
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setLocadores(data);
     } catch (error) {
       console.error('Error cargando locadores:', error);
+      toast.error('No se pudieron cargar los locadores');
     }
   };
 
-  const fetchTdRs = async () => {
+  const fetchTdRs = async (filters: { search?: string; estado?: string } = {}) => {
     try {
-      const res = await fetch(`${API_URL}/tdrs`);
+      const params = new URLSearchParams();
+      if (filters.search?.trim()) params.set('search', filters.search.trim());
+      if (filters.estado?.trim()) params.set('estado', filters.estado.trim());
+      const qs = params.toString();
+      const res = await fetch(`${API_URL}/tdrs${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setTdRs(data);
     } catch (error) {
       console.error('Error cargando TDRs:', error);
+      toast.error('No se pudieron cargar los TdR');
     }
+  };
+
+  const handleFilterTdRs = (filters: { search?: string; estado?: string }) => {
+    setTdrFilters(filters);
+    fetchTdRs(filters);
   };
 
   const handleLogin = (user: User) => {
@@ -88,9 +112,10 @@ export default function App() {
       if (!res.ok) throw new Error('Error guardando locador');
       await fetchLocadores();
       setCurrentPage('locadores');
+      toast.success('Locador guardado correctamente');
     } catch (error) {
       console.error(error);
-      alert('Error al guardar locador');
+      toast.error('Error al guardar locador');
     }
   };
 
@@ -104,12 +129,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tdr),
       });
-      if (!res.ok) throw new Error('Error guardando TDR');
-      await fetchTdRs();
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.errores?.join('\n') || err?.message || 'Error guardando TDR');
+      }
+      await fetchTdRs(tdrFilters);
       setCurrentPage('dashboard');
-    } catch (error) {
+      toast.success(`TdR ${isEditing ? 'actualizado' : 'creado'} correctamente`);
+    } catch (error: any) {
       console.error(error);
-      alert('Error al guardar TDR');
+      toast.error(error?.message || 'Error al guardar TDR');
     }
   };
 
@@ -126,20 +155,27 @@ export default function App() {
         body: JSON.stringify({ accion, observaciones, usuarioAdminId }),
       });
       if (!res.ok) throw new Error('Error validando TDR');
-      await fetchTdRs();
+      await fetchTdRs(tdrFilters);
       setCurrentPage('dashboard');
+      toast.success(accion === 'Validacion' ? 'TdR aprobado correctamente' : 'TdR observado correctamente');
     } catch (error) {
       console.error(error);
-      alert('Error al validar TDR');
+      toast.error('Error al validar TDR');
     }
   };
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <Toaster position="top-right" richColors />
+        <Login onLogin={handleLogin} />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" richColors />
 
       {currentPage === 'dashboard' && (
         <Dashboard
@@ -147,6 +183,7 @@ export default function App() {
           tdrs={tdrs}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
+          onFilterChange={handleFilterTdRs}
         />
       )}
 

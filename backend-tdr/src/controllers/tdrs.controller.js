@@ -1,5 +1,49 @@
 const pool = require('../config/db');
 
+// ===============================
+// 🔹 VALIDAR DATOS DE TDR (crear/editar)
+// ===============================
+function validarDatosTdr(body, { esNuevo }) {
+  const errores = [];
+
+  if (!body.codigo?.trim())                    errores.push('El código del TdR es obligatorio');
+  if (!body.equipoId)                           errores.push('Debe seleccionar un equipo solicitante');
+  if (!body.denominacionConvocatoria?.trim())   errores.push('La denominación del servicio es obligatoria');
+  if (!body.descripcionServicio?.trim())        errores.push('La descripción del servicio es obligatoria');
+
+  const plazo = Number(body.plazoEjecucionDias);
+  if (!body.plazoEjecucionDias || isNaN(plazo) || plazo <= 0)
+    errores.push('El plazo de ejecución debe ser un número mayor a 0');
+
+  const honorarios = Number(body.totalHonorarios);
+  if (!body.totalHonorarios || isNaN(honorarios) || honorarios <= 0)
+    errores.push('El honorario total debe ser un número mayor a 0');
+
+  const armadas = Number(body.numeroArmadas);
+  if (!body.numeroArmadas || isNaN(armadas) || armadas <= 0)
+    errores.push('El número de armadas debe ser mayor a 0');
+
+  let periodo = {};
+  try { periodo = JSON.parse(body.periodo || '{}'); } catch { errores.push('Periodo inválido'); }
+  if (!periodo.año || !periodo.mes) errores.push('Debe seleccionar el periodo (mes y año)');
+
+  if (esNuevo) {
+    if (body.esNuevoLocador !== 'true' && !body.locadorId)
+      errores.push('Debe seleccionar un locador o registrar uno nuevo');
+
+    if (body.esNuevoLocador === 'true') {
+      let locadorData = {};
+      try { locadorData = JSON.parse(body.locadorData || '{}'); } catch { errores.push('Datos de locador inválidos'); }
+      if (!locadorData.nombres?.trim())          errores.push('El nombre del locador es obligatorio');
+      if (!locadorData.apellidos?.trim())        errores.push('El apellido del locador es obligatorio');
+      if (!locadorData.numeroDocumento?.trim())  errores.push('El número de documento del locador es obligatorio');
+      if (locadorData.ruc && !/^\d{11}$/.test(locadorData.ruc))
+        errores.push('El RUC del locador debe tener 11 dígitos');
+    }
+  }
+
+  return errores;
+}
 
 // ===============================
 // 🔹 LISTAR TDRs
@@ -8,8 +52,53 @@ exports.getTdrs = async (req, res) => {
 
   try {
 
+    const { search, estado, equipoId, periodoId, page, pageSize } = req.query;
+
+    const where = [];
+    const params = [];
+
+    // Un CONTRATANTE solo ve los TDR que él mismo creó.
+    if (req.user?.rol === 'CONTRATANTE') {
+      where.push('t.usuario_creador_id = ?');
+      params.push(req.user.id);
+    }
+
+    if (search?.trim()) {
+      where.push('(t.codigo_unico LIKE ? OR t.denominacion LIKE ?)');
+      params.push(`%${search.trim()}%`, `%${search.trim()}%`);
+    }
+
+    if (estado?.trim()) {
+      where.push('t.estado_verificacion = ?');
+      params.push(estado.trim());
+    }
+
+    if (equipoId) {
+      where.push('t.equipo_id = ?');
+      params.push(equipoId);
+    }
+
+    if (periodoId) {
+      where.push('t.periodo_id = ?');
+      params.push(periodoId);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [countRows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM t_tdrs t ${whereSql}`,
+      params
+    );
+    const total = countRows[0].total;
+
+    const size = Math.min(Math.max(parseInt(pageSize) || 0, 0), 200) || total || 1;
+    const currentPage = Math.max(parseInt(page) || 1, 1);
+    const offset = (currentPage - 1) * size;
+
+    const usePagination = !!(page || pageSize);
+
     const [rows] = await pool.query(`
-      SELECT 
+      SELECT
         t.id,
         t.codigo_unico,
         t.denominacion,
@@ -28,8 +117,10 @@ exports.getTdrs = async (req, res) => {
       FROM t_tdrs t
       INNER JOIN m_equipos e ON t.equipo_id = e.id
       INNER JOIN m_periodos p ON t.periodo_id = p.id
+      ${whereSql}
       ORDER BY t.id DESC
-    `);
+      ${usePagination ? 'LIMIT ? OFFSET ?' : ''}
+    `, usePagination ? [...params, size, offset] : params);
 
     const formatted = rows.map(row => ({
       id: String(row.id),
@@ -41,8 +132,12 @@ exports.getTdrs = async (req, res) => {
         año: row.anio
       },
       estado: row.estado_verificacion,
-      ultima_observacion: row.ultima_observacion || null  // ← AGREGADO
+      ultima_observacion: row.ultima_observacion || null
     }));
+
+    if (usePagination) {
+      return res.json({ data: formatted, total, page: currentPage, pageSize: size });
+    }
 
     res.json(formatted);
 
@@ -241,6 +336,11 @@ exports.getTdrsByLocador = async (req, res) => {
 // ===============================
 exports.createTdr = async (req, res) => {
 
+  const errores = validarDatosTdr(req.body, { esNuevo: true });
+  if (errores.length > 0) {
+    return res.status(400).json({ message: 'Datos incompletos', errores });
+  }
+
   const connection = await pool.getConnection();
 
   try {
@@ -432,6 +532,11 @@ exports.createTdr = async (req, res) => {
 // 🔹 ACTUALIZAR TDR
 // ===============================
 exports.updateTdr = async (req, res) => {
+  const errores = validarDatosTdr(req.body, { esNuevo: false });
+  if (errores.length > 0) {
+    return res.status(400).json({ message: 'Datos incompletos', errores });
+  }
+
   const connection = await pool.getConnection();
 
   try {

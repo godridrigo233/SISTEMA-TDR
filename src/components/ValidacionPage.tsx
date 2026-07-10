@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User, TdR } from '../types';
 import {
@@ -481,7 +482,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
               <button
                 disabled={!todoCompletado || !algunRechazo}
                 onClick={() => {
-                  if (!todoCompletado) { alert('Complete todas las verificaciones primero.'); return; }
+                  if (!todoCompletado) { toast.error('Complete todas las verificaciones primero.'); return; }
                   setShowConfirmDialog('Observado');
                 }}
                 style={!todoCompletado || !algunRechazo
@@ -496,7 +497,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
               <button
                 disabled={!todoCompletado || !todoCorrecto}
                 onClick={() => {
-                  if (!todoCompletado) { alert('Complete todas las verificaciones primero.'); return; }
+                  if (!todoCompletado) { toast.error('Complete todas las verificaciones primero.'); return; }
                   if (todoCorrecto) setShowConfirmDialog('Aprobado');
                 }}
                 style={!todoCompletado || !todoCorrecto

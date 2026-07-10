@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User } from '../types';
 import { ArrowLeft, FileText, Upload, CheckCircle } from 'lucide-react';
@@ -33,7 +34,7 @@ export default function LocadoresPage({
     cci: ''
   });
 
-  const canEdit = user.rol === 'CONTRATANTE' || user.rol === 'ADMINISTRATIVO';
+  const canEdit = user.rol === 'CONTRATANTE' || user.rol === 'ADMINISTRADOR';
 
   /* =========================
      OBTENER LOCADORES
@@ -105,13 +106,28 @@ export default function LocadoresPage({
      VALIDACIÓN
   ==========================*/
   const validateDocumento = () => {
+    if (!formData.nombres?.trim() || !formData.apellidos?.trim()) {
+      toast.error("Nombres y apellidos son obligatorios.");
+      return false;
+    }
+
     if (formData.tipoDocumento === 'DNI' && formData.numeroDocumento.length !== 8) {
-      alert("El DNI debe tener exactamente 8 dígitos.");
+      toast.error("El DNI debe tener exactamente 8 dígitos.");
       return false;
     }
 
     if (formData.tipoDocumento === 'CE' && formData.numeroDocumento.length !== 9) {
-      alert("El Carnet de Extranjería debe tener exactamente 9 dígitos.");
+      toast.error("El Carnet de Extranjería debe tener exactamente 9 dígitos.");
+      return false;
+    }
+
+    if (formData.ruc && formData.ruc.length !== 11) {
+      toast.error("El RUC debe tener exactamente 11 dígitos.");
+      return false;
+    }
+
+    if (formData.correo_electronico && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo_electronico)) {
+      toast.error("El correo electrónico no es válido.");
       return false;
     }
 
@@ -162,13 +178,17 @@ export default function LocadoresPage({
         body: JSON.stringify(dataToSend)
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.message || 'Error guardando locador');
+      }
 
       onNavigate('locadores');
       fetchLocadores();
+      toast.success(editingId ? 'Locador actualizado correctamente' : 'Locador creado correctamente');
 
-    } catch {
-      alert("Error guardando locador");
+    } catch (error: any) {
+      toast.error(error?.message || "Error guardando locador");
     }
   };
 

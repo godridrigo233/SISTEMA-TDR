@@ -2,7 +2,10 @@
 // Rutas para tablas maestras: equipos y periodos
 const { Router } = require('express');
 const pool = require('../config/db');
+const { verifyToken } = require('../middleware/auth');
 const router = Router();
+
+router.use(verifyToken);
 
 // GET /api/maestros/equipos
 router.get('/equipos', async (req, res) => {

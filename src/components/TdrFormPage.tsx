@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User, TdR, Actividad, Entregable, NivelFormacion, ExperienciaLaboral } from '../types';
 import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase } from 'lucide-react';
@@ -214,7 +215,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
       const tdrData = await tdrResponse.json();
       setTdrsLocador(tdrData);
     } catch (error) {
-      console.error(error); alert("Error buscando locador");
+      console.error(error); toast.error("Error buscando locador");
     }
   };
 
@@ -308,7 +309,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
     if (!formData.descripcionServicio) camposFaltantes.push("Descripción del servicio");
     if (!formData.plazoEjecucionDias) camposFaltantes.push("Plazo de ejecución");
     if (!formData.totalHonorarios) camposFaltantes.push("Total de honorarios");
-    if (camposFaltantes.length > 0) { alert("⚠️ Debe completar:\n\n" + camposFaltantes.join("\n")); return; }
+    if (camposFaltantes.length > 0) { toast.error("Debe completar: " + camposFaltantes.join(", ")); return; }
 
     try {
       const formDataToSend = new FormData();
@@ -345,12 +346,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
       const method = isEditing ? "PUT" : "POST";
 
       const response = await fetch(url, { method, body: formDataToSend });
-      if (!response.ok) throw new Error("Error al guardar TDR");
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.errores?.join(' · ') || err?.message || 'Error al guardar TDR');
+      }
 
-      alert(`TDR ${isEditing ? 'actualizado' : 'creado'} correctamente ✅`);
+      toast.success(`TdR ${isEditing ? 'actualizado' : 'creado'} correctamente`);
       onNavigate("dashboard");
-    } catch (error) {
-      console.error(error); alert("Error guardando TDR");
+    } catch (error: any) {
+      console.error(error); toast.error(error?.message || "Error guardando TDR");
     }
   };
 

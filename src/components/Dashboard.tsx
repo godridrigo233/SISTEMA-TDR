@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from './Header';
 import { User, TdR } from '../types';
-import { 
-  FileText, 
-  Users, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
+import {
+  FileText,
+  Users,
+  CheckCircle,
+  AlertCircle,
+  Clock,
   PlusCircle,
   Eye,
   Edit,
   UserCircle,
   UserPlus,
+  Search,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -19,9 +20,22 @@ interface DashboardProps {
   tdrs: TdR[];
   onNavigate: (page: string, params?: any) => void;
   onLogout: () => void;
+  onFilterChange?: (filters: { search?: string; estado?: string }) => void;
 }
 
-export default function Dashboard({ user, tdrs, onNavigate, onLogout }: DashboardProps) {
+export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterChange }: DashboardProps) {
+  const [search, setSearch] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('');
+
+  // Debounce de la búsqueda para no disparar una petición por cada tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFilterChange?.({ search, estado: estadoFiltro });
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, estadoFiltro]);
+
   const pendientes = tdrs.filter(t => t.estado === 'Pendiente').length;
   const aprobados  = tdrs.filter(t => t.estado === 'Aprobado').length;
   const observados = tdrs.filter(t => t.estado === 'Observado').length;
@@ -84,44 +98,84 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
         </div>
 
         {/* Accesos rápidos */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <h3 className="font-semibold text-gray-900 mb-4">Accesos Rápidos</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(user.rol !== 'ADMINISTRATIVO') && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 className="font-semibold text-gray-900 mb-4">Accesos Rápidos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* SOLO CONTRATANTE: Nuevo TdR */}
-            {user.rol === 'CONTRATANTE' && (
-              <button
-                onClick={() => onNavigate('tdr-new')}
-                className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition group"
-              >
-                <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
-                  <PlusCircle className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Nuevo TdR</p>
-                  <p className="text-sm text-gray-500">Registrar nuevo Término de Referencia</p>
-                </div>
-              </button>
-            )}
+              {/* SOLO CONTRATANTE: Nuevo TdR */}
+              {user.rol === 'CONTRATANTE' && (
+                <button
+                  onClick={() => onNavigate('tdr-new')}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition group"
+                >
+                  <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
+                    <PlusCircle className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Nuevo TdR</p>
+                    <p className="text-sm text-gray-500">Registrar nuevo Término de Referencia</p>
+                  </div>
+                </button>
+              )}
 
-            {/* CONTRATANTE Y ADMINISTRATIVO: Locadores */}
-            {(user.rol === 'CONTRATANTE' || user.rol === 'ADMINISTRATIVO') && (
-              <button
-                onClick={() => onNavigate('locadores')}
-                className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition group"
-              >
-                <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Gestión de Locadores</p>
-                  <p className="text-sm text-gray-500">Crear y editar locadores</p>
-                </div>
-              </button>
-            )}
+              {/* CONTRATANTE Y ADMINISTRADOR: Locadores */}
+              {(user.rol === 'CONTRATANTE' || user.rol === 'ADMINISTRADOR') && (
+                <button
+                  onClick={() => onNavigate('locadores')}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition group"
+                >
+                  <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-lg flex items-center justify-center">
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Gestión de Locadores</p>
+                    <p className="text-sm text-gray-500">Crear y editar locadores</p>
+                  </div>
+                </button>
+              )}
 
-            {/* SOLO ADMINISTRATIVO: Plantilla TdR */}
-            {user.rol === 'ADMINISTRATIVO' && (
+              {/* Mi Perfil — solo CONTRATANTE */}
+              {user.rol === 'CONTRATANTE' && (
+                <button
+                  onClick={() => onNavigate('mi-perfil')}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-lg transition group"
+                >
+                  <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
+                    <UserCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Mi Perfil</p>
+                    <p className="text-sm text-gray-500">Mis datos personales para el expediente</p>
+                  </div>
+                </button>
+              )}
+
+              {/* Nuevo Contratante — solo ADMINISTRADOR */}
+              {user.rol === 'ADMINISTRADOR' && (
+                <button
+                  onClick={() => onNavigate('nuevo-contratante')}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-lg transition group"
+                >
+                  <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
+                    <UserPlus className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Nuevo Contratante</p>
+                    <p className="text-sm text-gray-500">Crear cuenta de acceso</p>
+                  </div>
+                </button>
+              )}
+
+            </div>
+          </div>
+        )}
+
+        {/* Accesos rápidos - ADMINISTRATIVO (solo Formato Base) */}
+        {user.rol === 'ADMINISTRATIVO' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 className="font-semibold text-gray-900 mb-4">Accesos Rápidos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => onNavigate('template-editor')}
                 className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 rounded-lg transition group"
@@ -134,49 +188,40 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
                   <p className="text-sm text-gray-500">Modificar la plantilla principal</p>
                 </div>
               </button>
-            )}
-
-            {/* Mi Perfil — solo CONTRATANTE */}
-            {user.rol === 'CONTRATANTE' && (
-              <button
-                onClick={() => onNavigate('mi-perfil')}
-                className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-lg transition group"
-              >
-                <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
-                  <UserCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Mi Perfil</p>
-                  <p className="text-sm text-gray-500">Mis datos personales para el expediente</p>
-                </div>
-              </button>
-            )}
-
-            {/* Nuevo Contratante — solo ADMINISTRATIVO */}
-            {user.rol === 'ADMINISTRATIVO' && (
-              <button
-                onClick={() => onNavigate('nuevo-contratante')}
-                className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-lg transition group"
-              >
-                <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
-                  <UserPlus className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">Nuevo Contratante</p>
-                  <p className="text-sm text-gray-500">Crear cuenta de acceso</p>
-                </div>
-              </button>
-            )}
-
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Lista de TdR */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h3 className="font-semibold text-gray-900">
-              {user.rol === 'ADMINISTRATIVO' ? 'TdR para Validación' : 'Mis TdR Registrados'}
+              {user.rol === 'ADMINISTRADOR' ? 'TdR para Validación' : user.rol === 'ADMINISTRATIVO' ? 'TdR para Validación' : 'Mis TdR Registrados'}
             </h3>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por código o denominación..."
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-72 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <select
+                value={estadoFiltro}
+                onChange={(e) => setEstadoFiltro(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Aprobado">Aprobado</option>
+                <option value="Observado">Observado</option>
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -241,7 +286,7 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
                           </button>
                         )}
 
-                        {user.rol === 'ADMINISTRATIVO' && (tdr.estado === 'Pendiente' || tdr.estado === 'Observado') && (
+                        {(user.rol === 'ADMINISTRATIVO' || user.rol === 'ADMINISTRADOR') && (tdr.estado === 'Pendiente' || tdr.estado === 'Observado') && (
                           <button
                             onClick={() => onNavigate('validacion', String(tdr.id))}
                             className="text-green-600 hover:text-green-800 flex items-center gap-1"
@@ -256,6 +301,13 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
                     </td>
                   </tr>
                 ))}
+                {tdrs.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                      No se encontraron TdR con los filtros aplicados.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
