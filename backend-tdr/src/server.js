@@ -11,7 +11,6 @@ const plantillaRoutes = require('./routes/plantilla.routes'); // ğŸ‘ˆ ImportaciÃ
 const contratantesRoutes = require('./routes/contratantes.routes');
 const maestrosRoutes = require('./routes/maestros.routes');
 
- 
 const JWT_SECRET = "claveprueba";
 
 // =========================

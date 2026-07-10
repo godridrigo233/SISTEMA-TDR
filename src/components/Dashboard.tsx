@@ -201,9 +201,22 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout }: Dashboar
                       {tdr.periodo.mes} {tdr.periodo.año}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoColor[tdr.estado]}`}>
-                        {tdr.estado}
-                      </span>
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoColor[(tdr.estado ?? tdr.estado_verificacion) as string]}`}>
+                          {tdr.estado ?? tdr.estado_verificacion}
+                        </span>
+                        {/* Observación visible solo para el contratante cuando está Observado */}
+                        {user.rol === 'CONTRATANTE' &&
+                         (tdr.estado ?? tdr.estado_verificacion) === 'Observado' &&
+                         tdr.ultima_observacion && (
+                          <div className="mt-1.5 max-w-[100px]">
+                            <p className="text-[1px] font-bold text-red-500 uppercase mb-0.5 tracking-wide">Observaciones:</p>
+                            <p className="text-[1px] text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-1 leading-snug whitespace-pre-wrap line-clamp-1">
+                              {tdr.ultima_observacion}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-4">

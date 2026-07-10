@@ -74,6 +74,64 @@ const CARD_NORMAL: React.CSSProperties = {
   border: '1px solid #e5e7eb',
 };
 
+// ─── ItemVerificacion FUERA del componente principal ─────────────────────────
+// CRÍTICO: debe estar fuera para que React no lo recree en cada render.
+// Si estuviera dentro, cada tecla causa unmount+remount → cursor al inicio.
+const ItemVerificacion = React.memo(({
+  itemKey,
+  titulo,
+  subtitulo,
+  verif,
+  onToggle,
+  onObservacion,
+}: {
+  itemKey: string;
+  titulo: string;
+  subtitulo: string;
+  verif: { estado: string; observacion: string };
+  onToggle: (key: string, valor: 'si' | 'no') => void;
+  onObservacion: (key: string, texto: string) => void;
+}) => {
+  if (!verif) return null;
+
+  return (
+    <div
+      style={verif.estado === 'no' ? CARD_RECHAZO : CARD_NORMAL}
+      className="p-4 rounded-lg transition-all duration-300"
+    >
+      <h5 className="text-xs font-bold text-gray-900 mb-1">{titulo}</h5>
+      <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">{subtitulo}</p>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => onToggle(itemKey, 'si')}
+          style={verif.estado === 'si' ? BTN_SI_ACTIVO : BTN_SI_INACTIVO}
+          className="flex-1 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all duration-150"
+        >
+          ✓ Si cumple
+        </button>
+        <button
+          onClick={() => onToggle(itemKey, 'no')}
+          style={verif.estado === 'no' ? BTN_NO_ACTIVO : BTN_NO_INACTIVO}
+          className="flex-1 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all duration-150"
+        >
+          ⊗ No cumple
+        </button>
+      </div>
+
+      {verif.estado === 'no' && (
+        <textarea
+          className="mt-3 w-full p-2 text-xs border border-red-200 rounded outline-none focus:border-red-400 bg-white resize-none"
+          rows={2}
+          placeholder="Especifique el motivo del rechazo..."
+          value={verif.observacion}
+          onChange={(e) => onObservacion(itemKey, e.target.value)}
+        />
+      )}
+    </div>
+  );
+});
+
 export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLogout }: ValidacionPageProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState<'Aprobado' | 'Observado' | null>(null);
   const [docVisible, setDocVisible] = useState<DocType>(null);
@@ -207,60 +265,8 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
     ? `${locador.apellidos}, ${locador.nombres}`
     : 'Candidato';
 
-  // ─── Componente reutilizable para cada ítem de verificación ──────────────────
-  const ItemVerificacion = ({
-    itemKey,
-    titulo,
-    subtitulo,
-  }: {
-    itemKey: string;
-    titulo: string;
-    subtitulo: string;
-  }) => {
-    const verif = verificaciones[itemKey];
-    if (!verif) return null;
-
-    return (
-      <div
-        style={verif.estado === 'no' ? CARD_RECHAZO : CARD_NORMAL}
-        className="p-4 rounded-lg transition-all duration-300"
-      >
-        <h5 className="text-xs font-bold text-gray-900 mb-1">{titulo}</h5>
-        <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">{subtitulo}</p>
-
-        <div className="flex gap-2">
-          {/* Botón SI CUMPLE */}
-          <button
-            onClick={() => handleVerificacionChange(itemKey, 'si')}
-            style={verif.estado === 'si' ? BTN_SI_ACTIVO : BTN_SI_INACTIVO}
-            className="flex-1 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all duration-150"
-          >
-            ✓ Si cumple
-          </button>
-
-          {/* Botón NO CUMPLE */}
-          <button
-            onClick={() => handleVerificacionChange(itemKey, 'no')}
-            style={verif.estado === 'no' ? BTN_NO_ACTIVO : BTN_NO_INACTIVO}
-            className="flex-1 py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 transition-all duration-150"
-          >
-            ⊗ No cumple
-          </button>
-        </div>
-
-        {verif.estado === 'no' && (
-          <textarea
-            autoFocus
-            className="mt-3 w-full p-2 text-xs border border-red-200 rounded outline-none focus:border-red-400 bg-white resize-none"
-            rows={2}
-            placeholder="Especifique el motivo del rechazo..."
-            value={verif.observacion}
-            onChange={(e) => handleObservacionChange(itemKey, e.target.value)}
-          />
-        )}
-      </div>
-    );
-  };
+  // ItemVerificacion se define fuera del componente (ver abajo del archivo)
+  // para evitar que React lo recree en cada render y pierda el cursor del textarea
 
   return (
     <div className="min-h-screen bg-[#f1efe9] text-[#334155] font-sans flex flex-col">
@@ -327,6 +333,18 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
 
             {/* Cabecera progreso */}
             <div className="p-4 border-b border-[#e5e0d8] bg-white shrink-0">
+              {/* Aviso si el contratante ya reenvió tras observación */}
+              {detalle?.validaciones?.some((v: any) => v.accion === 'Edicion') &&
+               detalle?.validaciones?.some((v: any) => v.accion === 'Observacion') && (
+                <div style={{
+                  background: '#fff7ed', border: '1px solid #fed7aa',
+                  borderRadius: 6, padding: '8px 12px', marginBottom: 12,
+                  fontSize: 11, color: '#9a3412', display: 'flex', alignItems: 'center', gap: 6
+                }}>
+                  <span>🔄</span>
+                  <span><strong>El contratante corrigió y reenvió</strong> este TdR tras la observación anterior. Revise los cambios antes de validar.</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lista de Verificación</h3>
@@ -366,6 +384,9 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
                         itemKey={`form_${f.id ?? idx}`}
                         titulo={f.especialidad}
                         subtitulo={`${f.centro_estudios} — Grado: ${f.grado_obtenido}`}
+                        verif={verificaciones[`form_${f.id ?? idx}`]}
+                        onToggle={handleVerificacionChange}
+                        onObservacion={handleObservacionChange}
                       />
                     ))}
                   </div>
@@ -397,6 +418,9 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
                           itemKey={`exp_${exp.id ?? idx}`}
                           titulo={cargo}
                           subtitulo={`Entidad: ${entidad} — Periodo: ${fechaInicio} al ${fechaFin}`}
+                          verif={verificaciones[`exp_${exp.id ?? idx}`]}
+                          onToggle={handleVerificacionChange}
+                          onObservacion={handleObservacionChange}
                         />
                       );
                     })}
@@ -408,6 +432,49 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
                 )}
               </div>
             </div>
+
+            {/* ── HISTORIAL DE REVISIONES ──────────────────────────── */}
+            {detalle?.validaciones?.length > 0 && (
+              <div className="px-4 pb-4">
+                <div className="bg-white border border-[#e5e7eb] rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-gray-50 border-b border-[#e5e7eb]">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                      Historial de Revisiones
+                    </h4>
+                  </div>
+                  <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                    {[...detalle.validaciones].reverse().map((v: any, i: number) => {
+                      const esEdicion    = v.accion === 'Edicion';
+                      const esAprobado   = v.accion === 'Validacion';
+                      const esObservado  = v.accion === 'Observacion';
+                      const fecha = v.created_at
+                        ? new Date(v.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '';
+                      return (
+                        <div key={i} className="px-3 py-2.5">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: '1px 7px',
+                              borderRadius: 10,
+                              background: esAprobado ? '#dcfce7' : esObservado ? '#fee2e2' : '#f3f4f6',
+                              color: esAprobado ? '#166534' : esObservado ? '#991b1b' : '#6b7280',
+                            }}>
+                              {esEdicion ? '✏️ Editado' : esAprobado ? '✓ Aprobado' : '⚠ Observado'}
+                            </span>
+                            <span className="text-[10px] text-gray-400">{fecha}</span>
+                          </div>
+                          {v.comentario && (
+                            <p className="text-xs text-gray-600 leading-relaxed pl-1">
+                              {v.comentario}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Footer botones */}
             <div className="p-4 border-t border-[#e5e0d8] bg-white shrink-0 flex gap-3">

@@ -167,76 +167,66 @@ const CeldaEditable = React.memo(({
 // Instalar: npm install jspdf dom-to-image-more jszip
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** CSS mínimo necesario para que las clases del preview se vean en el clon */
+/** CSS para el PDF — formato limpio sin colores de fondo, sin cortes */
 const EXPORT_CSS = `
-  * { box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000; background: #fff; margin: 0; padding: 0; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 11px; }
-  th, td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; word-wrap: break-word; }
-  .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-family: Arial, sans-serif; font-size: 11px; color: black; border: 1px solid #000; }
-  .excel-table th, .excel-table td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; word-wrap: break-word; }
-  .eh  { background-color: #D3D3D3; font-weight: bold; text-align: center; color: #000; }
-  .ehl { background-color: #D3D3D3; font-weight: bold; text-align: left; padding-left: 10px; color: #000; }
-  .dd  { background-color: #fff; color: #000; font-weight: normal; padding: 8px 10px; }
-  .dd-green { background-color: #e8f5e3; color: #000; font-style: italic; padding: 8px 10px; }
-  .dd-var { background-color: #fff; color: #000; font-weight: bold; padding: 8px 10px; }
-  .excel-title { font-size: 13pt; font-weight: bold; text-align: center; border: 1.5px solid #000; padding: 10px; margin-bottom: 14px; background-color: #fff; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000; background: #fff; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+  th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+
+  /* ── Evitar cortes de filas entre páginas ── */
+  tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .solid-box, .dashed-box, .excel-title, .no-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+  h1, h2, h3, .excel-title { page-break-after: avoid; }
+
+  .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+  .excel-table th, .excel-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+  .eh  { background-color: #D3D3D3; font-weight: bold; text-align: center; }
+  .ehl { background-color: #D3D3D3; font-weight: bold; text-align: left; padding-left: 8px; }
+  .dd  { background-color: #fff; color: #000; }
+  .dd-green { background-color: #fff; color: #000; font-style: italic; }
+  .dd-var { background-color: #fff; color: #000; font-weight: bold; }
+  .excel-title { font-size: 13px; font-weight: bold; text-align: center; border: 1px solid #000; padding: 10px; margin-bottom: 12px; background: #fff; line-height: 1.3; }
   .fb  { font-weight: bold; }
   .tc  { text-align: center; }
   .tr  { text-align: right; }
   .tl  { text-align: left; }
   .tj  { text-align: justify; }
-  .cost-table { width: 100%; border-collapse: collapse; border: 1.5px solid #000; margin-bottom: 10px; font-size: 10px; }
-  .cost-table td { padding: 6px 8px; vertical-align: middle; border: 1px solid #000; }
+
+  .cost-table { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 10px; font-size: 10px; }
+  .cost-table td { padding: 5px 7px; vertical-align: middle; border: 1px solid #000; }
   .bdb { border-bottom: 1px solid #000; } .bdr { border-right: 1px solid #000; }
-  .bdbD { border-bottom: 1px dashed #000; } .bdrD { border-right: 1px dashed #000; }
+  .bdbD { border-bottom: 1px solid #999; } .bdrD { border-right: 1px solid #999; }
   .bg-green { background-color: #fff; }
-  .solid-box { border: 1.5px solid #000; padding: 10px; text-align: center; font-weight: bold; margin: 8px 0; background-color: #f2f2f2; }
-  .dashed-box { border: 1.5px dashed #000; padding: 10px; margin-bottom: 14px; font-size: 10px; }
+  .solid-box { border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; margin: 6px 0; background: #f2f2f2; }
+  .dashed-box { border: 1px solid #999; padding: 8px; margin-bottom: 12px; font-size: 10px; }
   .propuesta-list { padding-left: 14px; list-style-type: none; font-size: 9px; line-height: 1.4; margin: 0; }
   .propuesta-list li { margin-bottom: 3px; }
-  .exp-box { display: inline-block; border: 1px solid #000; width: 40px; height: 20px; text-align: center; margin: 0 4px; font-weight: bold; vertical-align: middle; }
-  .cv-date-box { display: inline-block; border: 1px solid #000; width: 30px; height: 20px; text-align: center; vertical-align: middle; margin-right: 4px; }
-  .editable-cell { padding: 0; position: relative; height: 100%; min-height: 28px; }
-  .print-input { width: 100%; min-height: 24px; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; display: block; }
+  .exp-box { display: inline-block; border: 1px solid #000; width: 36px; height: 18px; text-align: center; margin: 0 3px; font-weight: bold; vertical-align: middle; line-height: 18px; font-size: 10px; }
+  .cv-date-box { display: inline-block; border: 1px solid #000; width: 28px; height: 18px; text-align: center; vertical-align: middle; margin-right: 3px; line-height: 18px; font-size: 10px; }
+  .print-input { width: 100%; min-height: 20px; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; }
   .dj-table { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.5; }
-  .dj-table td { vertical-align: top; padding-bottom: 8px; text-align: justify; border: none; }
-  .dj-num { width: 20px; font-weight: bold; padding-right: 6px; }
-  .footnotes { font-size: 8px; color: #555; margin-top: 12px; border-top: 1px solid #ccc; padding-top: 6px; line-height: 1.3; text-align: justify; }
-  .no-print { display: none !important; }
-  .btn-add-row { display: none !important; }
-  .btn-remove-row { display: none !important; }
+  .dj-table td { vertical-align: top; padding-bottom: 6px; text-align: justify; border: none; }
+  .dj-num { width: 18px; font-weight: bold; padding-right: 5px; }
+  .footnotes { font-size: 8px; color: #555; margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; line-height: 1.3; text-align: justify; }
+  .no-print, .btn-add-row, .btn-remove-row { display: none !important; }
   .print-only { display: block !important; }
   ol, ul { padding-left: 16px; }
-  li { margin-bottom: 4px; font-size: 10px; }
+  li { margin-bottom: 3px; font-size: 10px; }
   sup { font-size: 8px; }
-  p { margin-bottom: 6px; }
+  p { margin-bottom: 5px; }
   a { color: #000; text-decoration: none; }
-  [contenteditable="false"] { background-color: #fff; color: #000; }
+  [contenteditable="false"] { background-color: #fff !important; color: #000 !important; }
+
+  /* ── Forzar que NADA tenga fondo verde ── */
+  [style*="e8f5e3"] { background-color: #fff !important; }
+  [style*="background:#e8f5e3"], [style*="background-color:#e8f5e3"] { background-color: #fff !important; }
+
+  /* ── html2canvas renderiza mal los bordes dashed — forzar solid donde haya borde ── */
+  [style*="dashed"] { border-style: solid !important; }
+  .dashed-box, .bdbD, .bdrD { border-style: solid !important; }
 `;
-
-/** Prepara el elemento para PDF: quita botones, convierte inputs a texto */
-function prepararElemento(element: HTMLElement): HTMLElement {
-  const clone = element.cloneNode(true) as HTMLElement;
-
-  // Quitar lo que no debe imprimirse
-  clone.querySelectorAll('.no-print, button, .btn-add-row, .btn-remove-row').forEach(el => el.remove());
-
-  // Mostrar elementos print-only
-  clone.querySelectorAll('.print-only').forEach(el => {
-    (el as HTMLElement).style.display = 'block';
-  });
-
-  // Convertir inputs a spans con su valor actual
-  clone.querySelectorAll('input').forEach((inp: HTMLInputElement) => {
-    const span = document.createElement('span');
-    span.textContent = inp.value || '';
-    span.style.cssText = 'display:inline-block;min-width:30px;font-family:Arial,sans-serif;font-size:11px;';
-    inp.parentNode?.replaceChild(span, inp);
-  });
-
-  return clone;
-}
 
 const exportarExpedienteZIP = async (detalle: any) => {
   const codigoTdr   = detalle.codigo_unico || 'TDR';
@@ -261,14 +251,12 @@ const exportarExpedienteZIP = async (detalle: any) => {
     { id: 'group-doc-sst',          nombre: '15_ConstanciaSST' },
   ];
 
-  // Importar dinámicamente
-  let domtoimage: any, jsPDF: any, JSZip: any;
+  let html2pdf: any, JSZip: any;
   try {
-    domtoimage = (await import('dom-to-image-more')).default;
-    jsPDF      = (await import('jspdf')).jsPDF;
-    JSZip      = (await import('jszip')).default;
+    html2pdf = (await import('html2pdf.js')).default;
+    JSZip    = (await import('jszip')).default;
   } catch {
-    alert('Faltan dependencias. Ejecuta:\nnpm install jspdf dom-to-image-more jszip');
+    alert('Faltan dependencias. Ejecuta:\nnpm install html2pdf.js jszip');
     return;
   }
 
@@ -278,57 +266,117 @@ const exportarExpedienteZIP = async (detalle: any) => {
   }
 
   const zip = new JSZip();
-  const A4_W_PX = 794;
-  const A4_W_MM = 210;
-  const A4_H_MM = 297;
 
-  // Contenedor temporal con estilos inyectados — aislado del DOM principal
+  // Contenedor temporal fuera de pantalla
   const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1;';
-
-  // Inyectar el CSS necesario dentro del contenedor
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;z-index:-1;';
   const styleTag = document.createElement('style');
   styleTag.textContent = EXPORT_CSS;
   wrapper.appendChild(styleTag);
-
   document.body.appendChild(wrapper);
+
+  // A4: 210mm x 297mm — márgenes mínimos para llenar la página
+  const CONTENT_WIDTH = 750;
+
+  const baseOpt = {
+    margin:      [6, 6, 6, 6],  // mm: top, left, bottom, right — mínimo
+    image:       { type: 'jpeg', quality: 0.95 },
+    html2canvas: {
+      scale: 1.5,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: CONTENT_WIDTH,
+      windowWidth: CONTENT_WIDTH,
+    },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+    pagebreak:   { mode: ['css', 'legacy'], avoid: ['tr', '.no-break', '.solid-box', '.dashed-box'] },
+  };
 
   try {
     for (const doc of documentos) {
       const el = document.getElementById(doc.id);
       if (!el || !el.innerHTML.trim()) continue;
 
-      const clon = prepararElemento(el);
-      clon.style.cssText = 'width:794px;padding:20px;background:#fff;font-family:Arial,sans-serif;font-size:11px;line-height:1.4;box-sizing:border-box;';
-      wrapper.appendChild(clon);
+      const clon = el.cloneNode(true) as HTMLElement;
 
-      // Esperar dos frames para que el browser renderice completamente
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // ── Limpiar elementos interactivos ──
+      clon.querySelectorAll('.no-print, button, .btn-add-row, .btn-remove-row').forEach(n => n.remove());
+      clon.querySelectorAll('.print-only').forEach(n => { (n as HTMLElement).style.display = 'block'; });
 
-      try {
-        const dataUrl = await domtoimage.toPng(clon, {
-          width: A4_W_PX,
-          bgcolor: '#ffffff',
-        });
+      // ── Convertir inputs a texto plano ──
+      clon.querySelectorAll('input').forEach((inp: HTMLInputElement) => {
+        const span = document.createElement('span');
+        span.textContent = inp.value || '';
+        span.style.cssText = 'font-family:Arial,sans-serif;font-size:11px;';
+        inp.parentNode?.replaceChild(span, inp);
+      });
 
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise(r => { img.onload = r; });
+      // ── CLAVE: quitar page-break que causa página en blanco ──
+      clon.classList.remove('page-break');
+      clon.style.cssText = `width:${CONTENT_WIDTH}px;background:#fff;font-family:Arial,sans-serif;font-size:11px;line-height:1.4;margin:0;padding:0;`;
 
-        const ratio = img.naturalWidth / img.naturalHeight;
-        const pdfH  = A4_W_MM / ratio;
+      clon.querySelectorAll('.page-break').forEach(child => {
+        (child as HTMLElement).classList.remove('page-break');
+        (child as HTMLElement).style.pageBreakBefore = 'auto';
+        (child as HTMLElement).style.marginTop = '0';
+      });
 
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      // ── Recorrer TODOS los elementos y limpiar estilos inline ──
+      clon.querySelectorAll('*').forEach(el => {
+        const h = el as HTMLElement;
+        const s = h.style;
 
-        let yPos = 0;
-        while (yPos < pdfH) {
-          if (yPos > 0) pdf.addPage();
-          pdf.addImage(dataUrl, 'PNG', 0, -yPos, A4_W_MM, pdfH);
-          yPos += A4_H_MM;
+        // Quitar fondos verdes
+        if (s.backgroundColor === 'rgb(232, 245, 227)' || s.cssText?.includes('e8f5e3')) {
+          s.backgroundColor = '#ffffff';
+        }
+        if (s.background?.includes('e8f5e3')) {
+          s.background = '#ffffff';
         }
 
-        zip.file(`${doc.nombre}_${codigoTdr}_${nombreLoc}_${apellidoLoc}.pdf`, pdf.output('arraybuffer'));
+        // Convertir TODOS los bordes dashed a solid 1px — html2canvas los renderiza mal
+        if (s.cssText?.includes('dashed')) {
+          s.cssText = s.cssText.replace(/dashed/g, 'solid');
+        }
+        if (s.borderStyle === 'dashed') s.borderStyle = 'solid';
+        if (s.borderTopStyle === 'dashed') s.borderTopStyle = 'solid';
+        if (s.borderBottomStyle === 'dashed') s.borderBottomStyle = 'solid';
+        if (s.borderLeftStyle === 'dashed') s.borderLeftStyle = 'solid';
+        if (s.borderRightStyle === 'dashed') s.borderRightStyle = 'solid';
 
+        // Reducir bordes gruesos que html2canvas exagera
+        const bw = parseFloat(s.borderWidth);
+        if (bw > 1) s.borderWidth = '1px';
+        const btw = parseFloat(s.borderTopWidth);
+        if (btw > 1) s.borderTopWidth = '1px';
+        const bbw = parseFloat(s.borderBottomWidth);
+        if (bbw > 1) s.borderBottomWidth = '1px';
+
+        // Quitar contenteditable
+        if (h.hasAttribute('contenteditable')) {
+          h.removeAttribute('contenteditable');
+          s.backgroundColor = '#ffffff';
+          s.color = '#000000';
+        }
+      });
+
+      wrapper.appendChild(clon);
+
+      // Esperar render
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 100));
+
+      try {
+        const pdfBlob: Blob = await html2pdf()
+          .set(baseOpt)
+          .from(clon)
+          .outputPdf('blob');
+
+        zip.file(
+          `${doc.nombre}_${codigoTdr}_${nombreLoc}_${apellidoLoc}.pdf`,
+          await pdfBlob.arrayBuffer()
+        );
       } catch (docErr) {
         console.warn(`Error en ${doc.nombre}:`, docErr);
       }
@@ -345,7 +393,6 @@ const exportarExpedienteZIP = async (detalle: any) => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
   } finally {
     document.body.removeChild(wrapper);
   }

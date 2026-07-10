@@ -65,9 +65,6 @@ export function buildReplacements(detalle: any): Record<string, string> {
   //    "Detalle del Colaborador" (UNIDAD, PERSONAL DE CONTACTO, CORREO, CELULAR)
   const cnt = detalle.contratante;
 
-  // Nombre completo del contratante: usa apellidos (campo combinado) + nombres
-  // El backend devuelve cnt.apellidos = "Gómez Fernández" (primer + segundo apellido)
-  // y cnt.nombres = "Rodrigo"
   const contactoNombre = cnt?.nombres
     ? [cnt.apellidos, cnt.nombres].filter(Boolean).join(', ')
     : '';
@@ -77,6 +74,7 @@ export function buildReplacements(detalle: any): Record<string, string> {
     DENOMINACION:             detalle.denominacion || '',
     CODIGO_UNICO:             detalle.codigo_unico || '',
     DESCRIPCION_SERVICIO:     detalle.objetivo || detalle.descripcion_servicio || detalle.denominacion || '',
+    FINALIDAD_PUBLICA:        detalle.finalidad_publica || '',   // ← NUEVO
     MODALIDAD:                detalle.modalidad || 'Mixto',
     PLAZO_EJECUCION:          String(detalle.plazo_ejecucion || ''),
     HONORARIO_TOTAL:          String(detalle.honorario_total || ''),
@@ -110,11 +108,6 @@ export function buildReplacements(detalle: any): Record<string, string> {
     LOCADOR_CCI:              loc?.cci                 || '',
 
     // ── SECCIÓN COLABORADOR — datos del CONTRATANTE que creó el TDR ──────────
-    // Tabla "DETALLE DEL COLABORADOR QUE COORDINARÁ CON EL OEC Y PROVEEDOR"
-    // UNIDAD ORGANIZACIONAL = equipo del TDR (m_equipos.nombre)
-    // PERSONAL DE CONTACTO  = nombre del contratante (t_contratantes_perfil)
-    // CORREO ELECTRÓNICO    = correo del contratante
-    // CELULAR               = teléfono del contratante
     UNIDAD:           detalle.equipo_nombre || '',
     EQUIPO_NOMBRE:    detalle.equipo_nombre || '',
     CONTACTO_NOMBRE:  contactoNombre,

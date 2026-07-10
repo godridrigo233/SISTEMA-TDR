@@ -64,11 +64,12 @@ export interface TdR {
     rnp?: File | string;
     ruc?: File | string;
   };
-  actividades: Actividad[];
+  actividades: Actividad[]; 
   entregables: Entregable[];
   estado: 'Pendiente' | 'Aprobado' | 'Observado';
   fechaCreacion: string;
   creadoPor: string;
+  ultima_observacion?: string | null; 
   historialValidaciones?: HistorialValidacion[];
 }
 

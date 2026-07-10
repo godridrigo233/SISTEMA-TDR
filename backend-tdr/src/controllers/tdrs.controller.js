@@ -16,7 +16,15 @@ exports.getTdrs = async (req, res) => {
         t.estado_verificacion,
         e.nombre AS equipo_nombre,
         p.nombre_mes,
-        p.anio
+        p.anio,
+        (
+          SELECT h.comentario
+          FROM t_tdr_historial_validaciones h
+          WHERE h.tdr_id = t.id
+            AND h.accion = 'Observacion'
+          ORDER BY h.created_at DESC
+          LIMIT 1
+        ) AS ultima_observacion
       FROM t_tdrs t
       INNER JOIN m_equipos e ON t.equipo_id = e.id
       INNER JOIN m_periodos p ON t.periodo_id = p.id
@@ -32,7 +40,8 @@ exports.getTdrs = async (req, res) => {
         mes: row.nombre_mes,
         año: row.anio
       },
-      estado: row.estado_verificacion
+      estado: row.estado_verificacion,
+      ultima_observacion: row.ultima_observacion || null  // ← AGREGADO
     }));
 
     res.json(formatted);
@@ -52,13 +61,6 @@ exports.getTdrs = async (req, res) => {
 // ===============================
 // 🔹 OBTENER TDR POR ID
 // ===============================
-// ═══════════════════════════════════════════════════════════════════
-// REEMPLAZA solo exports.getTdrById en tdrs.controller.js
-// El resto del archivo (getTdrs, createTdr, updateTdr, validarTdr)
-// queda exactamente igual.
-// ═══════════════════════════════════════════════════════════════════
-
-
 exports.getTdrById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -71,7 +73,6 @@ exports.getTdrById = async (req, res) => {
         p.anio,
         u.username   AS creado_por_username,
 
-        -- Datos del CONTRATANTE (quien creó el TDR) para la sección Colaborador
         cp.nombres            AS cnt_nombres,
         cp.primer_apellido    AS cnt_primer_apellido,
         cp.segundo_apellido   AS cnt_segundo_apellido,
@@ -101,14 +102,11 @@ exports.getTdrById = async (req, res) => {
 
     const tdr = tdrRows[0];
 
-    // ── Locador: persona externa (m_locadores) — firma todos los docs ────
     const [locadorRows] = await pool.query(
       'SELECT * FROM m_locadores WHERE id = ?',
       [tdr.locador_id]
     );
 
-    // ── Contratante: subobjeto con los datos del colaborador ─────────────
-    // apellidos = primer_apellido + segundo_apellido (para nombre completo)
     const contratante = tdr.cnt_nombres ? {
       nombres:            tdr.cnt_nombres,
       primer_apellido:    tdr.cnt_primer_apellido,
@@ -130,12 +128,10 @@ exports.getTdrById = async (req, res) => {
       username:           tdr.creado_por_username,
     } : null;
 
-    // Limpiar columnas cnt_* del objeto raíz
     Object.keys(tdr)
       .filter(k => k.startsWith('cnt_') || k === 'creado_por_username')
       .forEach(k => delete tdr[k]);
 
-    // ── Subtablas ─────────────────────────────────────────────────────────
     const [formacion] = await pool.query(
       'SELECT * FROM t_locador_formacion WHERE locador_id = ?',
       [tdr.locador_id]
@@ -147,7 +143,7 @@ exports.getTdrById = async (req, res) => {
     const [certificaciones] = await pool.query(
       'SELECT * FROM t_locador_certificaciones WHERE locador_id = ?',
       [tdr.locador_id]
-    ).catch(() => [[]]);  // tabla opcional
+    ).catch(() => [[]]);
 
     const [actividades] = await pool.query(
       'SELECT * FROM t_tdr_actividades WHERE tdr_id = ?', [id]
@@ -159,7 +155,7 @@ exports.getTdrById = async (req, res) => {
       'SELECT tipo_documento, ruta_archivo FROM t_locador_documentos WHERE tdr_id = ?', [id]
     );
     const [validaciones] = await pool.query(
-      'SELECT * FROM t_tdr_historial_validaciones WHERE tdr_id = ?', [id]
+      'SELECT * FROM t_tdr_historial_validaciones WHERE tdr_id = ? ORDER BY created_at ASC', [id]
     );
 
     const documentos = {};
@@ -173,7 +169,7 @@ exports.getTdrById = async (req, res) => {
     res.json({
       ...tdr,
       locador:      locadorRows[0] || null,
-      contratante,                              // null si no tiene perfil completo
+      contratante,
       formacion,
       experiencia,
       certificaciones,
@@ -240,8 +236,6 @@ exports.getTdrsByLocador = async (req, res) => {
 
 };
 
-
-
 // ===============================
 // 🔹 CREAR TDR
 // ===============================
@@ -266,19 +260,14 @@ exports.createTdr = async (req, res) => {
       esNuevoLocador
     } = req.body;
 
-    const periodo = JSON.parse(req.body.periodo || "{}");
+    const periodo     = JSON.parse(req.body.periodo     || "{}");
     const actividades = JSON.parse(req.body.actividades || "[]");
     const entregables = JSON.parse(req.body.entregables || "[]");
     const locadorData = JSON.parse(req.body.locadorData || "{}");
-    const formacion = JSON.parse(req.body.formacion || "[]");
-    const experiencias = JSON.parse(req.body.experiencias || "[]");
+    const formacion   = JSON.parse(req.body.formacion   || "[]");
+    const experiencias= JSON.parse(req.body.experiencias|| "[]");
 
-
-
-    // ===============================
-    // 🔹 CREAR LOCADOR SI NO EXISTE
-    // ===============================
-
+    // ── Locador ──────────────────────────────────────────────────────
     let locadorFinalId = locadorId;
 
     if (esNuevoLocador === "true") {
@@ -289,19 +278,16 @@ exports.createTdr = async (req, res) => {
       );
 
       if (existe.length > 0) {
-
         locadorFinalId = existe[0].id;
-
       } else {
-
         const [nuevo] = await connection.query(`
           INSERT INTO m_locadores
-          (apellidos,nombres,tipo_documento,numero_documento,
-          ruc,domicilio,telefono_celular,correo_electronico,
-          fecha_nacimiento,cci,genero,estado_civil,nacionalidad,
-          lugar_nacimiento,banco)
+          (apellidos, nombres, tipo_documento, numero_documento,
+           ruc, domicilio, telefono_celular, correo_electronico,
+           fecha_nacimiento, cci, genero, estado_civil, nacionalidad,
+           lugar_nacimiento, banco)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        `,[
+        `, [
           locadorData.apellidos,
           locadorData.nombres,
           locadorData.tipoDocumento,
@@ -318,93 +304,60 @@ exports.createTdr = async (req, res) => {
           locadorData.lugarNacimiento,
           locadorData.banco
         ]);
-
         locadorFinalId = nuevo.insertId;
-
       }
-
     }
 
-
-
-    // ===============================
-    // 🔹 FORMACIÓN
-    // ===============================
-
-    for(const f of formacion){
-
+    // ── Formación ─────────────────────────────────────────────────────
+    for (const f of formacion) {
       await connection.query(`
         INSERT INTO t_locador_formacion
-        (locador_id,centro_estudios,especialidad,grado_obtenido,ciudad,fecha_inicio,fecha_fin)
+        (locador_id, centro_estudios, especialidad, grado_obtenido, ciudad, fecha_inicio, fecha_fin)
         VALUES (?,?,?,?,?,?,?)
-      `,[
+      `, [
         locadorFinalId,
         f.centroEstudios || "",
-        f.especialidad || "",
-        f.gradoObtenido || "",
-        f.ciudad || "",
-        f.fechaInicio || null,
-        f.fechaFin || null
+        f.especialidad   || "",
+        f.gradoObtenido  || "",
+        f.ciudad         || "",
+        f.fechaInicio    || null,
+        f.fechaFin       || null
       ]);
-
     }
 
-
-
-    // ===============================
-    // 🔹 EXPERIENCIA
-    // ===============================
-
-    for(const exp of experiencias){
-
+    // ── Experiencia ───────────────────────────────────────────────────
+    for (const exp of experiencias) {
       await connection.query(`
-      INSERT INTO t_locador_experiencia
-      (locador_id, tipo_experiencia, entidad_empresa, cargo, descripcion_trabajo, fecha_inicio, fecha_fin)
-      VALUES (?,?,?,?,?,?,?)
-    `, [
-      locadorFinalId,
-      exp.tipoExperiencia || "General",
-      exp.nombreEntidad || "",
-      exp.cargo || "",              
-      exp.descripcionTrabajo || "",
-      exp.fechaInicio || null,
-      exp.fechaFin || null
-    ]);
-
+        INSERT INTO t_locador_experiencia
+        (locador_id, tipo_experiencia, entidad_empresa, cargo, descripcion_trabajo, fecha_inicio, fecha_fin)
+        VALUES (?,?,?,?,?,?,?)
+      `, [
+        locadorFinalId,
+        exp.tipoExperiencia  || "General",
+        exp.nombreEntidad    || "",
+        exp.cargo            || "",
+        exp.descripcionTrabajo || "",
+        exp.fechaInicio      || null,
+        exp.fechaFin         || null
+      ]);
     }
 
-
-
-    // ===============================
-    // 🔹 PERIODO
-    // ===============================
-
+    // ── Periodo ───────────────────────────────────────────────────────
     const [periodoRows] = await connection.query(
       "SELECT id FROM m_periodos WHERE anio=? AND nombre_mes=?",
-      [periodo.año,periodo.mes]
+      [periodo.año, periodo.mes]
     );
-
-    if(periodoRows.length === 0){
-
-      throw new Error("Periodo no encontrado");
-
-    }
-
+    if (periodoRows.length === 0) throw new Error("Periodo no encontrado");
     const periodo_id = periodoRows[0].id;
 
-
-
-    // ===============================
-    // 🔹 INSERTAR TDR
-    // ===============================
-
+    // ── Insertar TDR ──────────────────────────────────────────────────
     const [result] = await connection.query(`
       INSERT INTO t_tdrs
-      (codigo_unico,locador_id,equipo_id,periodo_id,
-      usuario_creador_id,denominacion,objetivo,
-      plazo_ejecucion,honorario_total,total_armadas)
+      (codigo_unico, locador_id, equipo_id, periodo_id,
+       usuario_creador_id, denominacion, objetivo,
+       plazo_ejecucion, honorario_total, total_armadas)
       VALUES (?,?,?,?,?,?,?,?,?,?)
-    `,[
+    `, [
       codigo,
       locadorFinalId,
       equipoId,
@@ -419,34 +372,21 @@ exports.createTdr = async (req, res) => {
 
     const tdrId = result.insertId;
 
-
-
-    // ===============================
-    // 🔹 ACTIVIDADES
-    // ===============================
-
-    for(const act of actividades){
-
+    // ── Actividades ───────────────────────────────────────────────────
+    for (const act of actividades) {
       await connection.query(
-        "INSERT INTO t_tdr_actividades (tdr_id,descripcion) VALUES (?,?)",
-        [tdrId,act.descripcion]
+        "INSERT INTO t_tdr_actividades (tdr_id, descripcion) VALUES (?,?)",
+        [tdrId, act.descripcion]
       );
-
     }
 
-
-
-    // ===============================
-    // 🔹 ENTREGABLES
-    // ===============================
-
-    for(const ent of entregables){
-
+    // ── Entregables ───────────────────────────────────────────────────
+    for (const ent of entregables) {
       await connection.query(`
         INSERT INTO t_tdr_entregables
-        (tdr_id,nro_armada,descripcion,fecha_inicio,fecha_fin,monto_pago)
+        (tdr_id, nro_armada, descripcion, fecha_inicio, fecha_fin, monto_pago)
         VALUES (?,?,?,?,?,?)
-      `,[
+      `, [
         tdrId,
         ent.armada,
         ent.descripcion,
@@ -454,72 +394,38 @@ exports.createTdr = async (req, res) => {
         ent.fechaFinArmada,
         ent.monto
       ]);
-
     }
 
-
-
-    // ===============================
-    // 🔹 DOCUMENTOS
-    // ===============================
-
-    if(req.files){
-
+    // ── Documentos ────────────────────────────────────────────────────
+    if (req.files) {
       const documentos = [
-        {key:"dniFile",tipo:"DNI_CE"},
-        {key:"rnpFile",tipo:"RNP"},
-        {key:"rucFile",tipo:"RUC"},
-        {key:"cvFile",tipo:"CV_DOCUMENTADO"}
+        { key: "dniFile", tipo: "DNI_CE" },
+        { key: "rnpFile", tipo: "RNP" },
+        { key: "rucFile", tipo: "RUC" },
+        { key: "cvFile",  tipo: "CV_DOCUMENTADO" }
       ];
-
-      for(const doc of documentos){
-
-        if(req.files[doc.key]){
-
+      for (const doc of documentos) {
+        if (req.files[doc.key]) {
           const file = req.files[doc.key][0];
-
           await connection.query(`
             INSERT INTO t_locador_documentos
-            (locador_id,tdr_id,tipo_documento,ruta_archivo)
+            (locador_id, tdr_id, tipo_documento, ruta_archivo)
             VALUES (?,?,?,?)
-          `,[
-            locadorFinalId,
-            tdrId,
-            doc.tipo,
-            `uploads/${file.filename}`
-          ]);
-
+          `, [locadorFinalId, tdrId, doc.tipo, `uploads/${file.filename}`]);
         }
-
       }
-
     }
 
-
-
     await connection.commit();
+    res.json({ message: "TDR creado correctamente", id: tdrId });
 
-    res.json({
-      message:"TDR creado correctamente",
-      id:tdrId
-    });
-
-  } catch(error){
-
+  } catch (error) {
     await connection.rollback();
-
-    console.error("Error creando TDR:",error);
-
-    res.status(500).json({
-      message:error.message || "Error interno"
-    });
-
+    console.error("Error creando TDR:", error);
+    res.status(500).json({ message: error.message || "Error interno" });
   } finally {
-
     connection.release();
-
   }
-
 };
 
 // ===============================
@@ -532,7 +438,6 @@ exports.updateTdr = async (req, res) => {
     await connection.beginTransaction();
     const { id } = req.params;
 
-    // 1. Extraemos los campos simples
     const {
       codigo,
       equipoId,
@@ -544,43 +449,39 @@ exports.updateTdr = async (req, res) => {
       usuarioCreadorId
     } = req.body;
 
-    // 🔥 2. AQUÍ SE DEFINEN LAS VARIABLES FALTANTES (¡Muy importante!)
-    const periodo = JSON.parse(req.body.periodo || "{}");
+    const periodo     = JSON.parse(req.body.periodo     || "{}");
     const actividades = JSON.parse(req.body.actividades || "[]");
     const entregables = JSON.parse(req.body.entregables || "[]");
-    const formacion = JSON.parse(req.body.formacion || "[]");
-    const experiencias = JSON.parse(req.body.experiencias || "[]");
+    const formacion   = JSON.parse(req.body.formacion   || "[]");
+    const experiencias= JSON.parse(req.body.experiencias|| "[]");
 
-    // 3. Obtener periodo_id correcto
+    // ── Periodo ───────────────────────────────────────────────────────
     const [periodoRows] = await connection.query(
       "SELECT id FROM m_periodos WHERE anio=? AND nombre_mes=?",
       [periodo.año, periodo.mes]
     );
-    if(periodoRows.length === 0){
-      throw new Error("Periodo no encontrado en la base de datos.");
-    }
+    if (periodoRows.length === 0) throw new Error("Periodo no encontrado en la base de datos.");
     const periodo_id = periodoRows[0].id;
 
-    // 4. ACTUALIZAR TDR (Y pasarlo a Pendiente)
+    // ── Actualizar TDR → Pendiente ────────────────────────────────────
     await connection.query(`
-      UPDATE t_tdrs
-      SET 
-        codigo_unico = ?,
-        equipo_id = ?,
-        periodo_id = ?,
-        denominacion = ?,
-        objetivo = ?,
-        plazo_ejecucion = ?,
-        honorario_total = ?,
-        total_armadas = ?,
+      UPDATE t_tdrs SET
+        codigo_unico        = ?,
+        equipo_id           = ?,
+        periodo_id          = ?,
+        denominacion        = ?,
+        objetivo            = ?,
+        plazo_ejecucion     = ?,
+        honorario_total     = ?,
+        total_armadas       = ?,
         estado_verificacion = 'Pendiente'
       WHERE id = ?
     `, [
-      codigo, equipoId, periodo_id, denominacionConvocatoria, 
+      codigo, equipoId, periodo_id, denominacionConvocatoria,
       descripcionServicio, plazoEjecucionDias, totalHonorarios, numeroArmadas, id
     ]);
 
-    // 5. REGISTRAR HISTORIAL DE EDICIÓN
+    // ── Historial de edición ──────────────────────────────────────────
     if (usuarioCreadorId) {
       await connection.query(`
         INSERT INTO t_tdr_historial_validaciones
@@ -589,76 +490,76 @@ exports.updateTdr = async (req, res) => {
       `, [id, usuarioCreadorId]);
     }
 
-    // Extraer el locador asociado a este TdR
+    // ── Locador asociado ──────────────────────────────────────────────
     const [tdrInfo] = await connection.query("SELECT locador_id FROM t_tdrs WHERE id=?", [id]);
     const locadorId = tdrInfo[0].locador_id;
 
-    // 6. ACTUALIZAR FORMACIÓN
+    // ── Formación ─────────────────────────────────────────────────────
     await connection.query("DELETE FROM t_locador_formacion WHERE locador_id = ?", [locadorId]);
     for (const f of formacion) {
       await connection.query(`
         INSERT INTO t_locador_formacion
         (locador_id, centro_estudios, especialidad, grado_obtenido, ciudad, fecha_inicio, fecha_fin)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?,?,?,?,?,?,?)
       `, [
-        locadorId, 
-        f.centroEstudios || "", 
-        f.especialidad || "", 
-        f.gradoObtenido || "",
-        f.ciudad || "",
-        f.fechaInicio || null,
-        f.fechaFin || null
+        locadorId,
+        f.centroEstudios || "",
+        f.especialidad   || "",
+        f.gradoObtenido  || "",
+        f.ciudad         || "",
+        f.fechaInicio    || null,
+        f.fechaFin       || null
       ]);
     }
 
-    // 7. ACTUALIZAR EXPERIENCIA
+    // ── Experiencia ───────────────────────────────────────────────────
     await connection.query("DELETE FROM t_locador_experiencia WHERE locador_id = ?", [locadorId]);
     for (const exp of experiencias) {
       await connection.query(`
         INSERT INTO t_locador_experiencia
         (locador_id, tipo_experiencia, entidad_empresa, cargo, descripcion_trabajo, fecha_inicio, fecha_fin)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?,?,?,?,?,?,?)
       `, [
         locadorId,
-        exp.tipoExperiencia || "General",
-        exp.nombreEntidad || "",
-        exp.cargo || "",              // ← NUEVO
+        exp.tipoExperiencia    || "General",
+        exp.nombreEntidad      || "",
+        exp.cargo              || "",
         exp.descripcionTrabajo || "",
-        exp.fechaInicio || null,
-        exp.fechaFin || null
+        exp.fechaInicio        || null,
+        exp.fechaFin           || null
       ]);
     }
 
-    // 8. ACTUALIZAR ACTIVIDADES
+    // ── Actividades ───────────────────────────────────────────────────
     await connection.query("DELETE FROM t_tdr_actividades WHERE tdr_id = ?", [id]);
-    for(const act of actividades){
+    for (const act of actividades) {
       await connection.query(
-        "INSERT INTO t_tdr_actividades (tdr_id, descripcion) VALUES (?, ?)",
+        "INSERT INTO t_tdr_actividades (tdr_id, descripcion) VALUES (?,?)",
         [id, act.descripcion]
       );
     }
 
-    // 9. ACTUALIZAR ENTREGABLES
+    // ── Entregables ───────────────────────────────────────────────────
     await connection.query("DELETE FROM t_tdr_entregables WHERE tdr_id = ?", [id]);
-    for(const ent of entregables){
+    for (const ent of entregables) {
       await connection.query(`
         INSERT INTO t_tdr_entregables
         (tdr_id, nro_armada, descripcion, fecha_inicio, fecha_fin, monto_pago)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,[
-        id, ent.armada, ent.descripcion, ent.fechaInicioArmada, ent.fechaFinArmada, ent.monto
+        VALUES (?,?,?,?,?,?)
+      `, [
+        id, ent.armada, ent.descripcion,
+        ent.fechaInicioArmada, ent.fechaFinArmada, ent.monto
       ]);
     }
 
-    // 10. ACTUALIZAR DOCUMENTOS
+    // ── Documentos ────────────────────────────────────────────────────
     if (req.files) {
       const documentosTipos = [
         { key: "dniFile", tipo: "DNI_CE" },
         { key: "rnpFile", tipo: "RNP" },
         { key: "rucFile", tipo: "RUC" },
-        { key: "cvFile", tipo: "CV_DOCUMENTADO" }
+        { key: "cvFile",  tipo: "CV_DOCUMENTADO" }
       ];
-
       for (const doc of documentosTipos) {
         if (req.files[doc.key]) {
           const file = req.files[doc.key][0];
@@ -666,18 +567,16 @@ exports.updateTdr = async (req, res) => {
             "SELECT id FROM t_locador_documentos WHERE tdr_id = ? AND tipo_documento = ?",
             [id, doc.tipo]
           );
-
           if (existeDoc.length > 0) {
-            await connection.query(`
-              UPDATE t_locador_documentos 
-              SET ruta_archivo = ? 
-              WHERE id = ?
-            `, [`uploads/${file.filename}`, existeDoc[0].id]);
+            await connection.query(
+              "UPDATE t_locador_documentos SET ruta_archivo = ? WHERE id = ?",
+              [`uploads/${file.filename}`, existeDoc[0].id]
+            );
           } else {
             await connection.query(`
               INSERT INTO t_locador_documentos
               (locador_id, tdr_id, tipo_documento, ruta_archivo)
-              VALUES (?, ?, ?, ?)
+              VALUES (?,?,?,?)
             `, [locadorId, id, doc.tipo, `uploads/${file.filename}`]);
           }
         }
@@ -695,57 +594,45 @@ exports.updateTdr = async (req, res) => {
     connection.release();
   }
 };
+
 // ===============================
 // 🔹 VALIDAR TDR
 // ===============================
-exports.validarTdr = async (req,res)=>{
+exports.validarTdr = async (req, res) => {
 
   const connection = await pool.getConnection();
 
-  try{
+  try {
 
     await connection.beginTransaction();
 
-    const {id} = req.params;
-    const {accion,observaciones,usuarioAdminId} = req.body;
+    const { id } = req.params;
+    const { accion, observaciones, usuarioAdminId } = req.body;
 
-    let estado="Pendiente";
+    let estado = "Pendiente";
+    if (accion === "Validacion") estado = "Aprobado";
+    if (accion === "Observacion") estado = "Observado";
 
-    if(accion==="Validacion") estado="Aprobado";
-    if(accion==="Observacion") estado="Observado";
-
-    await connection.query(`
-      UPDATE t_tdrs
-      SET estado_verificacion=?
-      WHERE id=?
-    `,[estado,id]);
+    await connection.query(
+      "UPDATE t_tdrs SET estado_verificacion = ? WHERE id = ?",
+      [estado, id]
+    );
 
     await connection.query(`
       INSERT INTO t_tdr_historial_validaciones
-      (tdr_id,usuario_admin_id,accion,estado_resultante,comentario)
+      (tdr_id, usuario_admin_id, accion, estado_resultante, comentario)
       VALUES (?,?,?,?,?)
-    `,[id,usuarioAdminId,accion,estado,observaciones || null]);
+    `, [id, usuarioAdminId, accion, estado, observaciones || null]);
 
     await connection.commit();
+    res.json({ message: "TDR validado correctamente" });
 
-    res.json({
-      message:"TDR validado correctamente"
-    });
-
-  }catch(error){
-
+  } catch (error) {
     await connection.rollback();
-
     console.error(error);
-
-    res.status(500).json({
-      message:"Error validando TDR"
-    });
-
-  }finally{
-
+    res.status(500).json({ message: "Error validando TDR" });
+  } finally {
     connection.release();
-
   }
 
 };
