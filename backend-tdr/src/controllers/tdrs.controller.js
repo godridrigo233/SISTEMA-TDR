@@ -10,6 +10,7 @@ function validarDatosTdr(body, { esNuevo }) {
   if (!body.equipoId)                           errores.push('Debe seleccionar un equipo solicitante');
   if (!body.denominacionConvocatoria?.trim())   errores.push('La denominación del servicio es obligatoria');
   if (!body.descripcionServicio?.trim())        errores.push('La descripción del servicio es obligatoria');
+  if (!body.finalidadPublica?.trim())           errores.push('La finalidad pública es obligatoria');
 
   const plazo = Number(body.plazoEjecucionDias);
   if (!body.plazoEjecucionDias || isNaN(plazo) || plazo <= 0)
@@ -353,6 +354,7 @@ exports.createTdr = async (req, res) => {
       equipoId,
       denominacionConvocatoria,
       descripcionServicio,
+      finalidadPublica,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas,
@@ -454,9 +456,9 @@ exports.createTdr = async (req, res) => {
     const [result] = await connection.query(`
       INSERT INTO t_tdrs
       (codigo_unico, locador_id, equipo_id, periodo_id,
-       usuario_creador_id, denominacion, objetivo,
+       usuario_creador_id, denominacion, objetivo, finalidad_publica,
        plazo_ejecucion, honorario_total, total_armadas)
-      VALUES (?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
     `, [
       codigo,
       locadorFinalId,
@@ -465,6 +467,7 @@ exports.createTdr = async (req, res) => {
       usuarioCreadorId,
       denominacionConvocatoria,
       descripcionServicio,
+      finalidadPublica,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas
@@ -548,6 +551,7 @@ exports.updateTdr = async (req, res) => {
       equipoId,
       denominacionConvocatoria,
       descripcionServicio,
+      finalidadPublica,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas,
@@ -576,6 +580,7 @@ exports.updateTdr = async (req, res) => {
         periodo_id          = ?,
         denominacion        = ?,
         objetivo            = ?,
+        finalidad_publica   = ?,
         plazo_ejecucion     = ?,
         honorario_total     = ?,
         total_armadas       = ?,
@@ -583,7 +588,7 @@ exports.updateTdr = async (req, res) => {
       WHERE id = ?
     `, [
       codigo, equipoId, periodo_id, denominacionConvocatoria,
-      descripcionServicio, plazoEjecucionDias, totalHonorarios, numeroArmadas, id
+      descripcionServicio, finalidadPublica, plazoEjecucionDias, totalHonorarios, numeroArmadas, id
     ]);
 
     // ── Historial de edición ──────────────────────────────────────────
