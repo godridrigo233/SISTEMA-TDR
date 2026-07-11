@@ -26,8 +26,8 @@ exports.updatePlantilla = async (req, res) => {
       UPDATE m_plantilla_tdr 
       SET 
         titulo = ?, objeto = ?, finalidad = ?, perfil = ?, 
-        actividades = ?, entregables = ?, plazo = ?, 
-        formaPago = ?, penalidades = ?, conformidad = ?
+        actividades = ?, entregables = ?, plazo = ?,
+        "formaPago" = ?, penalidades = ?, conformidad = ?
       WHERE id = 1
     `, [titulo, objeto, finalidad, perfil, actividades, entregables, plazo, formaPago, penalidades, conformidad]);
 

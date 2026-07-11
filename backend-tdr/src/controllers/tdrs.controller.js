@@ -64,7 +64,7 @@ exports.getTdrs = async (req, res) => {
     }
 
     if (search?.trim()) {
-      where.push('(t.codigo_unico LIKE ? OR t.denominacion LIKE ?)');
+      where.push('(t.codigo_unico ILIKE ? OR t.denominacion ILIKE ?)');
       params.push(`%${search.trim()}%`, `%${search.trim()}%`);
     }
 

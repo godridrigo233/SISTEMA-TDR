@@ -6,6 +6,6 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 router.use(verifyToken);
 
 router.get('/', plantillaController.getPlantilla);
-router.put('/', requireRole('ADMINISTRATIVO'), plantillaController.updatePlantilla);
+router.put('/', requireRole('ADMINISTRATIVO', 'ADMINISTRADOR'), plantillaController.updatePlantilla);
 
 module.exports = router;
