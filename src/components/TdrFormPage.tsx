@@ -33,6 +33,9 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
     equipoId: undefined,
     descripcionServicio: '',
     finalidadPublica: '',
+    nivelFormacionRequerido: '',
+    tituloObtenidoRequerido: '',
+    capacitacionRequerida: '',
     plazoEjecucionDias: 0,
     experienciaEspecifica: '',
     totalHonorarios: 0,
@@ -105,6 +108,9 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
             denominacionConvocatoria: data.denominacion,
             descripcionServicio: data.objetivo,
             finalidadPublica: data.finalidad_publica || '',
+            nivelFormacionRequerido: data.nivel_formacion_requerido || '',
+            tituloObtenidoRequerido: data.titulo_obtenido_requerido || '',
+            capacitacionRequerida: data.capacitacion_requerida || '',
             plazoEjecucionDias: data.plazo_ejecucion,
             totalHonorarios: Number(data.honorario_total),
             numeroArmadas: data.total_armadas,
@@ -311,6 +317,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
     if (!formData.denominacionConvocatoria) camposFaltantes.push("Denominación");
     if (!formData.descripcionServicio) camposFaltantes.push("Descripción del servicio");
     if (!formData.finalidadPublica) camposFaltantes.push("Finalidad pública");
+    if (!formData.nivelFormacionRequerido) camposFaltantes.push("Nivel de formación requerido");
     if (!formData.plazoEjecucionDias) camposFaltantes.push("Plazo de ejecución");
     if (!formData.totalHonorarios) camposFaltantes.push("Total de honorarios");
     if (camposFaltantes.length > 0) { toast.error("Debe completar: " + camposFaltantes.join(", ")); return; }
@@ -331,6 +338,9 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
       formDataToSend.append("denominacionConvocatoria", formData.denominacionConvocatoria || "");
       formDataToSend.append("descripcionServicio", formData.descripcionServicio || "");
       formDataToSend.append("finalidadPublica", formData.finalidadPublica || "");
+      formDataToSend.append("nivelFormacionRequerido", formData.nivelFormacionRequerido || "");
+      formDataToSend.append("tituloObtenidoRequerido", formData.tituloObtenidoRequerido || "");
+      formDataToSend.append("capacitacionRequerida", formData.capacitacionRequerida || "");
       formDataToSend.append("plazoEjecucionDias", String(formData.plazoEjecucionDias || 0));
       formDataToSend.append("totalHonorarios", String(formData.totalHonorarios || 0));
       formDataToSend.append("numeroArmadas", String(formData.numeroArmadas || 1));
@@ -544,6 +554,30 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                     onChange={(e) => handleInputChange('finalidadPublica', e.target.value)}
                     rows={3} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Explique el interés público que justifica esta contratación..." required />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nivel de Formación Requerido *</label>
+                  <input type="text" value={formData.nivelFormacionRequerido}
+                    onChange={(e) => handleInputChange('nivelFormacionRequerido', e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej: Universitario completo" required />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Título / Cargo Requerido</label>
+                  <input type="text" value={formData.tituloObtenidoRequerido}
+                    onChange={(e) => handleInputChange('tituloObtenidoRequerido', e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej: Ingeniería de Sistemas" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Capacitación / Entrenamiento</label>
+                  <input type="text" value={formData.capacitacionRequerida}
+                    onChange={(e) => handleInputChange('capacitacionRequerida', e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Ej: NO CORRESPONDE" />
                 </div>
 
                 <div>

@@ -79,12 +79,16 @@ export function buildReplacements(detalle: any): Record<string, string> {
     PLAZO_EJECUCION:          String(detalle.plazo_ejecucion || ''),
     HONORARIO_TOTAL:          String(detalle.honorario_total || ''),
     FORMA_PAGO:               detalle.forma_pago || 'POR ENTREGABLE - PREVIA CONFORMIDAD',
+    TOTAL_ARMADAS:            String(detalle.total_armadas || ''),
     ACTIVIDADES_LISTA:        activitiesList
                                 ? `<ol style="padding-left:15px;">${activitiesList}</ol>`
                                 : '',
     EXP_GENERAL_REQUERIDA:    detalle.experiencia_general_requerida || '03 años',
     EXP_ESPECIFICA_REQUERIDA: detalle.experiencia_especifica_requerida || '02 años',
     OBJETIVO_SUSTENTO:        detalle.objetivo || 'Servicio especializado requerido para el cumplimiento de las metas institucionales.',
+    NIVEL_FORMACION:            detalle.nivel_formacion_requerido || '',
+    DESCRIPCION_CARGO_REQUERIDO: detalle.titulo_obtenido_requerido || '',
+    CAPACITACION_REQUERIDA:      detalle.capacitacion_requerida || '',
 
     // ── Entregables ───────────────────────────────────────────────────────────
     ENTREGABLE_NRO:     detalle.entregables?.[0]?.nro_armada || '1',
@@ -106,6 +110,12 @@ export function buildReplacements(detalle: any): Record<string, string> {
     LOCADOR_TELEFONO:         loc?.telefono_celular    || '',
     LOCADOR_BANCO:            loc?.banco               || '',
     LOCADOR_CCI:              loc?.cci                 || '',
+    LOCADOR_LUGAR_NAC:        loc?.lugar_nacimiento    || '',
+    LOCADOR_FECHA_NAC:        loc?.fecha_nacimiento
+                                ? new Date(loc.fecha_nacimiento).toLocaleDateString('es-PE')
+                                : '',
+    LOCADOR_ESTADO_CIVIL:     loc?.estado_civil        || '',
+    LOCADOR_NACIONALIDAD:     loc?.nacionalidad        || '',
 
     // ── SECCIÓN COLABORADOR — datos del CONTRATANTE que creó el TDR ──────────
     UNIDAD:           detalle.equipo_nombre || '',

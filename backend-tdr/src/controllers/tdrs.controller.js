@@ -11,6 +11,7 @@ function validarDatosTdr(body, { esNuevo }) {
   if (!body.denominacionConvocatoria?.trim())   errores.push('La denominación del servicio es obligatoria');
   if (!body.descripcionServicio?.trim())        errores.push('La descripción del servicio es obligatoria');
   if (!body.finalidadPublica?.trim())           errores.push('La finalidad pública es obligatoria');
+  if (!body.nivelFormacionRequerido?.trim())    errores.push('El nivel de formación requerido es obligatorio');
 
   const plazo = Number(body.plazoEjecucionDias);
   if (!body.plazoEjecucionDias || isNaN(plazo) || plazo <= 0)
@@ -355,6 +356,9 @@ exports.createTdr = async (req, res) => {
       denominacionConvocatoria,
       descripcionServicio,
       finalidadPublica,
+      nivelFormacionRequerido,
+      tituloObtenidoRequerido,
+      capacitacionRequerida,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas,
@@ -457,8 +461,9 @@ exports.createTdr = async (req, res) => {
       INSERT INTO t_tdrs
       (codigo_unico, locador_id, equipo_id, periodo_id,
        usuario_creador_id, denominacion, objetivo, finalidad_publica,
+       nivel_formacion_requerido, titulo_obtenido_requerido, capacitacion_requerida,
        plazo_ejecucion, honorario_total, total_armadas)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `, [
       codigo,
       locadorFinalId,
@@ -468,6 +473,9 @@ exports.createTdr = async (req, res) => {
       denominacionConvocatoria,
       descripcionServicio,
       finalidadPublica,
+      nivelFormacionRequerido || null,
+      tituloObtenidoRequerido || null,
+      capacitacionRequerida   || null,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas
@@ -552,6 +560,9 @@ exports.updateTdr = async (req, res) => {
       denominacionConvocatoria,
       descripcionServicio,
       finalidadPublica,
+      nivelFormacionRequerido,
+      tituloObtenidoRequerido,
+      capacitacionRequerida,
       plazoEjecucionDias,
       totalHonorarios,
       numeroArmadas,
@@ -575,20 +586,25 @@ exports.updateTdr = async (req, res) => {
     // ── Actualizar TDR → Pendiente ────────────────────────────────────
     await connection.query(`
       UPDATE t_tdrs SET
-        codigo_unico        = ?,
-        equipo_id           = ?,
-        periodo_id          = ?,
-        denominacion        = ?,
-        objetivo            = ?,
-        finalidad_publica   = ?,
-        plazo_ejecucion     = ?,
-        honorario_total     = ?,
-        total_armadas       = ?,
-        estado_verificacion = 'Pendiente'
+        codigo_unico              = ?,
+        equipo_id                 = ?,
+        periodo_id                = ?,
+        denominacion              = ?,
+        objetivo                  = ?,
+        finalidad_publica         = ?,
+        nivel_formacion_requerido = ?,
+        titulo_obtenido_requerido = ?,
+        capacitacion_requerida    = ?,
+        plazo_ejecucion           = ?,
+        honorario_total           = ?,
+        total_armadas             = ?,
+        estado_verificacion       = 'Pendiente'
       WHERE id = ?
     `, [
       codigo, equipoId, periodo_id, denominacionConvocatoria,
-      descripcionServicio, finalidadPublica, plazoEjecucionDias, totalHonorarios, numeroArmadas, id
+      descripcionServicio, finalidadPublica,
+      nivelFormacionRequerido || null, tituloObtenidoRequerido || null, capacitacionRequerida || null,
+      plazoEjecucionDias, totalHonorarios, numeroArmadas, id
     ]);
 
     // ── Historial de edición ──────────────────────────────────────────
