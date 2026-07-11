@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Building2, AlertCircle } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 interface LoginProps {
   onLogin: (user: any) => void;
@@ -20,7 +21,7 @@ export default function Login({ onLogin }: LoginProps) {
     }
 
     try {
-      const response = await fetch('http://localhost:4000/api/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

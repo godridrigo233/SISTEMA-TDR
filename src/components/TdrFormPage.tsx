@@ -3,6 +3,7 @@ import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User, TdR, Actividad, Entregable, NivelFormacion, ExperienciaLaboral } from '../types';
 import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 interface TdrFormPageProps {
   user: User;
@@ -78,12 +79,12 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
 
   // ── Cargar tablas maestras desde la BD ───────────────────────────
   useEffect(() => {
-    fetch('http://localhost:4000/api/maestros/equipos')
+    fetch(`${API_URL}/maestros/equipos`)
       .then(res => res.json())
       .then(data => setEquipos(data))
       .catch(err => console.error('Error cargando equipos:', err));
 
-    fetch('http://localhost:4000/api/maestros/periodos')
+    fetch(`${API_URL}/maestros/periodos`)
       .then(res => res.json())
       .then(data => setPeriodos(data))
       .catch(err => console.error('Error cargando periodos:', err));
@@ -93,7 +94,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
   useEffect(() => {
     if (tdrIdToEdit) {
       setLoadingEdit(true);
-      fetch(`http://localhost:4000/api/tdrs/${tdrIdToEdit}`)
+      fetch(`${API_URL}/tdrs/${tdrIdToEdit}`)
         .then(res => res.json())
         .then(data => {
           setFormData((prev: any) => ({
@@ -184,7 +185,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
   const handleBuscarDNI = async () => {
     if (!dniSearch.trim()) return;
     try {
-      const response = await fetch(`http://localhost:4000/api/locadores/dni/${dniSearch}`);
+      const response = await fetch(`${API_URL}/locadores/dni/${dniSearch}`);
       if (response.status === 404) {
         setLocadorEncontrado(null); setEsNuevoLocador(true); setTdrsLocador([]); return;
       }
@@ -211,7 +212,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
           fechaFin: exp.fecha_fin?.split("T")[0], experienciaAcumulada: ""
         })) || []
       );
-      const tdrResponse = await fetch(`http://localhost:4000/api/tdrs/locador/${data.id}`);
+      const tdrResponse = await fetch(`${API_URL}/tdrs/locador/${data.id}`);
       const tdrData = await tdrResponse.json();
       setTdrsLocador(tdrData);
     } catch (error) {
@@ -342,7 +343,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
       if (uploadedFiles.ruc) formDataToSend.append("rucFile", uploadedFiles.ruc);
 
       const isEditing = !!tdrIdToEdit;
-      const url = isEditing ? `http://localhost:4000/api/tdrs/${tdrIdToEdit}` : "http://localhost:4000/api/tdrs";
+      const url = isEditing ? `${API_URL}/tdrs/${tdrIdToEdit}` : `${API_URL}/tdrs`;
       const method = isEditing ? "PUT" : "POST";
 
       const response = await fetch(url, { method, body: formDataToSend });

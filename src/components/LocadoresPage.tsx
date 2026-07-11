@@ -3,6 +3,7 @@ import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User } from '../types';
 import { ArrowLeft, FileText, Upload, CheckCircle } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 interface LocadoresPageProps {
   user: User;
@@ -42,7 +43,7 @@ export default function LocadoresPage({
   const fetchLocadores = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/locadores');
+      const res = await fetch(`${API_URL}/locadores`);
       const data = await res.json();
       setLocadores(data);
     } catch (error) {
@@ -78,7 +79,7 @@ export default function LocadoresPage({
 
     else if (currentPage === 'locador-edit' && editingId) {
 
-      fetch(`http://localhost:4000/api/locadores/${editingId}`)
+      fetch(`${API_URL}/locadores/${editingId}`)
         .then(res => res.json())
         .then(data => {
           setFormData({
@@ -155,8 +156,8 @@ export default function LocadoresPage({
 
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId
-      ? `http://localhost:4000/api/locadores/${editingId}`
-      : `http://localhost:4000/api/locadores`;
+      ? `${API_URL}/locadores/${editingId}`
+      : `${API_URL}/locadores`;
 
     const dataToSend = {
       nombres: formData.nombres,

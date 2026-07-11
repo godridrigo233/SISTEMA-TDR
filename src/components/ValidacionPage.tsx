@@ -13,6 +13,7 @@ import {
   Check,
   Download
 } from 'lucide-react';
+import { API_BASE, API_URL } from '../config/api';
 
 interface ValidacionPageProps {
   user: User;
@@ -39,7 +40,7 @@ function buildDocUrl(path: string): string {
   if (!path) return '';
   if (path.startsWith('http')) return path;
   const clean = path.startsWith('/') ? path.slice(1) : path;
-  return `http://localhost:4000/${clean}`;
+  return `${API_BASE}/${clean}`;
 }
 
 // ─── Estilos inline para botones de verificación ─────────────────────────────
@@ -148,7 +149,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
   );
 
   useEffect(() => {
-    fetch(`http://localhost:4000/api/tdrs/${tdr.id}`)
+    fetch(`${API_URL}/tdrs/${tdr.id}`)
       .then((res) => {
         if (!res.ok) throw new Error('Error al obtener TDR');
         return res.json();

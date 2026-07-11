@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from './Header';
 import { User } from '../types';
 import { UserPlus, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 interface NuevoContratantePageProps {
   user: User;
@@ -17,8 +18,6 @@ const VACIO = {
   domicilio: '', lugar_nacimiento: '', fecha_nacimiento: '',
   estado_civil: '', nacionalidad: 'Peruana', banco: '', cci: '',
 };
-
-const API_URL = 'http://localhost:4000/api';
 
 // 🔥 CORRECCIÓN: Movemos el componente Input AFUERA del componente principal
 // para evitar que React lo destruya y pierda el foco en cada tecla.

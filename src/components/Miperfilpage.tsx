@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import { User } from '../types';
 import { User as UserIcon, CreditCard, Phone, MapPin, Briefcase } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 interface MiPerfilPageProps {
   user: User;
@@ -27,8 +28,6 @@ interface Perfil {
   cci: string;
   username: string;
 }
-
-const API_URL = 'http://localhost:4000/api';
 
 export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPageProps) {
   const [perfil, setPerfil]   = useState<Perfil | null>(null);

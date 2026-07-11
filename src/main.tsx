@@ -2,10 +2,10 @@
   import { createRoot } from "react-dom/client";
   import App from "./App.tsx";
   import "./index.css";
+  import { API_BASE } from "./config/api";
 
   // Adjunta automáticamente el token JWT a toda petición hacia el backend,
   // así no hay que tocar cada fetch() individual en cada componente.
-  const API_BASE = 'http://localhost:4000';
   const originalFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = typeof input === 'string' ? input : (input as Request).url ?? String(input);

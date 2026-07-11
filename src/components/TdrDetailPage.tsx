@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner@2.0.3';
 import { User, TdR } from '../types';
+import { API_URL } from '../config/api';
 // Utilidades de plantilla en archivo separado para cumplir con Vite Fast Refresh.
 import {
   parseTemplate,
@@ -496,7 +497,7 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
 
   // ── Obtener datos del TDR ──────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`http://localhost:4000/api/tdrs/${tdr.id}`)
+    fetch(`${API_URL}/tdrs/${tdr.id}`)
       .then((res) => res.json())
       .then((data) => {
         setDetalle(data);

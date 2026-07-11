@@ -10,8 +10,7 @@ import TdrTemplatePage from './components/TdrTemplatePage';
 import MiPerfilPage from './components/Miperfilpage'; // ← NUEVO
 import NuevoContratantePage from './components/NuevoContratantePage';
 import { User, Locador, TdR } from './types';
-
-const API_URL = 'http://localhost:4000/api';
+import { API_URL } from './config/api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
