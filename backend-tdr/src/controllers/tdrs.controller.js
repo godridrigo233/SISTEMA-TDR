@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { uploadDocumento, getSignedUrl } = require('../config/storage');
 
 // ===============================
 // 🔹 VALIDAR DATOS DE TDR (crear/editar)
@@ -256,12 +257,13 @@ exports.getTdrById = async (req, res) => {
     );
 
     const documentos = {};
-    documentosRows.forEach(doc => {
-      if (doc.tipo_documento === 'CV_DOCUMENTADO') documentos.cv  = doc.ruta_archivo;
-      if (doc.tipo_documento === 'DNI_CE')         documentos.dni = doc.ruta_archivo;
-      if (doc.tipo_documento === 'RNP')            documentos.rnp = doc.ruta_archivo;
-      if (doc.tipo_documento === 'RUC')            documentos.ruc = doc.ruta_archivo;
-    });
+    for (const doc of documentosRows) {
+      const url = await getSignedUrl(doc.ruta_archivo);
+      if (doc.tipo_documento === 'CV_DOCUMENTADO') documentos.cv  = url;
+      if (doc.tipo_documento === 'DNI_CE')         documentos.dni = url;
+      if (doc.tipo_documento === 'RNP')            documentos.rnp = url;
+      if (doc.tipo_documento === 'RUC')            documentos.ruc = url;
+    }
 
     res.json({
       ...tdr,
@@ -518,11 +520,14 @@ exports.createTdr = async (req, res) => {
       for (const doc of documentos) {
         if (req.files[doc.key]) {
           const file = req.files[doc.key][0];
+          const ext = file.originalname.includes('.') ? file.originalname.split('.').pop() : 'pdf';
+          const storagePath = `locador_${locadorFinalId}/${doc.tipo}_${Date.now()}.${ext}`;
+          await uploadDocumento(file.buffer, storagePath, file.mimetype);
           await connection.query(`
             INSERT INTO t_locador_documentos
             (locador_id, tdr_id, tipo_documento, ruta_archivo)
             VALUES (?,?,?,?)
-          `, [locadorFinalId, tdrId, doc.tipo, `uploads/${file.filename}`]);
+          `, [locadorFinalId, tdrId, doc.tipo, storagePath]);
         }
       }
     }
@@ -689,6 +694,10 @@ exports.updateTdr = async (req, res) => {
       for (const doc of documentosTipos) {
         if (req.files[doc.key]) {
           const file = req.files[doc.key][0];
+          const ext = file.originalname.includes('.') ? file.originalname.split('.').pop() : 'pdf';
+          const storagePath = `locador_${locadorId}/${doc.tipo}_${Date.now()}.${ext}`;
+          await uploadDocumento(file.buffer, storagePath, file.mimetype);
+
           const [existeDoc] = await connection.query(
             "SELECT id FROM t_locador_documentos WHERE tdr_id = ? AND tipo_documento = ?",
             [id, doc.tipo]
@@ -696,14 +705,14 @@ exports.updateTdr = async (req, res) => {
           if (existeDoc.length > 0) {
             await connection.query(
               "UPDATE t_locador_documentos SET ruta_archivo = ? WHERE id = ?",
-              [`uploads/${file.filename}`, existeDoc[0].id]
+              [storagePath, existeDoc[0].id]
             );
           } else {
             await connection.query(`
               INSERT INTO t_locador_documentos
               (locador_id, tdr_id, tipo_documento, ruta_archivo)
               VALUES (?,?,?,?)
-            `, [locadorId, id, doc.tipo, `uploads/${file.filename}`]);
+            `, [locadorId, id, doc.tipo, storagePath]);
           }
         }
       }

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const pool = require('../config/db');
+const { getSignedUrl } = require('../config/storage');
 exports.getLocadores = async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -43,10 +44,17 @@ exports.getLocadores = async (req, res) => {
         locadoresMap[row.id].documentos.push({
           id: row.doc_id,
           tipo_documento: row.documento_tipo,
-          ruta_archivo: row.ruta_archivo
+          ruta_archivo: row.ruta_archivo // path interno — se firma abajo
         });
       }
     });
+
+    // Firmar todas las rutas de documentos antes de responder
+    for (const locador of Object.values(locadoresMap)) {
+      for (const doc of locador.documentos) {
+        doc.ruta_archivo = await getSignedUrl(doc.ruta_archivo);
+      }
+    }
 
     res.json(Object.values(locadoresMap));
 
@@ -107,6 +115,9 @@ exports.getLocadorByDni = async (req, res) => {
       "SELECT * FROM t_locador_documentos WHERE locador_id = ?",
       [locador.id]
     );
+    for (const doc of documentos) {
+      doc.ruta_archivo = await getSignedUrl(doc.ruta_archivo);
+    }
 
     res.json({
       ...locador,

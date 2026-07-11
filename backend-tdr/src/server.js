@@ -24,7 +24,8 @@ app.use(cors({
 }));
 
 app.use(express.json()); // Permite leer req.body en formato JSON
-app.use("/uploads", express.static("uploads"));
+// Los documentos (DNI, CV, RUC, RNP) viven en Supabase Storage (bucket privado)
+// y se acceden vía URLs firmadas — el filesystem local del contenedor es efímero.
 
 // =========================
 // 🔐 LOGIN
