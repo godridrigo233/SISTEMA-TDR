@@ -711,7 +711,9 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
         .eh { background-color: #D3D3D3 !important; font-weight: bold; text-align: center; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .ehl { background-color: #D3D3D3 !important; font-weight: bold; text-align: left; padding-left: 10px !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .dd { background-color: #ffffff !important; color: #000; font-weight: normal; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .dd-green { background-color: #e8f5e3 !important; color: #000; font-style: italic; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .dd-green { background-color: #ffffff !important; color: #000; font-style: italic; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        /* Forzar blanco y negro: ningún campo dinámico lleva fondo verde en el preview */
+        [style*="e8f5e3"] { background-color: #ffffff !important; }
         .dd-var { background-color: #ffffff !important; color: #000; font-weight: bold; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cell-editable { background-color: #ffffff !important; color: #000; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .excel-title { font-size: 12pt; font-weight: bold; text-align: center; border: 1.5px solid #000 !important; padding: 10px; margin-bottom: 14px; background-color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1179,6 +1181,9 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
 
             <p style={{ fontSize: 10, marginBottom: 10, textAlign: 'justify' }}>
               En ese sentido, me comprometo a mantener la oferta presentada hasta perfeccionar el contrato, en caso de resultar favorecido.
+            </p>
+            <p style={{ fontSize: 10, marginBottom: 10, textAlign: 'justify' }}>
+              El costo total del servicio incluye todos los impuestos de ley, seguros, transporte, inspecciones, pruebas, así como cualquier otro concepto que pueda tener incidencia sobre el costo del servicio. El pago se realizará de acuerdo a la aprobación de el(los) entregable(s) y de la conformidad del servicio, en las condiciones que se detallan en los términos de referencia, los que declaro conocer y aceptar a cabalidad.
             </p>
             <p style={{ fontSize: 10, marginBottom: 6 }}>Adjunto a la presente los siguientes documentos:</p>
             <ul className="propuesta-list">

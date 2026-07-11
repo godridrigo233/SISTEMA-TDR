@@ -59,7 +59,7 @@ export default function NuevoContratantePage({ user, onNavigate, onLogout }: Nue
   const [verConf, setVerConf]     = useState(false);
 
   // Solo admin puede acceder
-  if (user.rol !== 'ADMINISTRATIVO') {
+  if (user.rol !== 'ADMINISTRADOR') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-red-600 font-semibold">Acceso restringido — solo administradores.</p>

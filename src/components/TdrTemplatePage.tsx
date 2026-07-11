@@ -28,15 +28,15 @@ export const initialTemplateData: Record<string, { aplica: boolean; html: string
     <tr>
       <td class="tc fb" rowspan="3" style="width:4%; vertical-align:middle; background:#f2f2f2; border:1px solid #000;">1</td>
       <td class="fb" style="width:28%; background:#f2f2f2; border:1px solid #000; padding:8px 10px;">DENOMINACIÓN DE LA CONTRATACIÓN</td>
-      <td contenteditable="false" style="background:#e8f5e3; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify;">{{DENOMINACION}}</td>
+      <td contenteditable="false" style="background:#ffffff; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify;">{{DENOMINACION}}</td>
     </tr>
     <tr>
       <td class="fb" style="background:#f2f2f2; border:1px solid #000; padding:8px 10px; vertical-align:top;">DESCRIPCIÓN DEL SERVICIO (OBJETIVO DE LA CONTRATACIÓN)</td>
-      <td contenteditable="false" style="background:#e8f5e3; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify;">{{DESCRIPCION_SERVICIO}}</td>
+      <td contenteditable="false" style="background:#ffffff; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify;">{{DESCRIPCION_SERVICIO}}</td>
     </tr>
     <tr>
       <td class="fb" style="background:#f2f2f2; border:1px solid #000; padding:8px 10px; vertical-align:top;">FINALIDAD PÚBLICA</td>
-      <td contenteditable="false" style="background:#e8f5e3; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify; line-height:1.5;">{{FINALIDAD_PUBLICA}}</td>
+      <td contenteditable="false" style="background:#ffffff; border:1px solid #000; padding:8px 10px; font-style:italic; text-align:justify; line-height:1.5;">{{FINALIDAD_PUBLICA}}</td>
     </tr>
   </tbody>
 </table>`,
@@ -227,10 +227,6 @@ export const initialTemplateData: Record<string, { aplica: boolean; html: string
         En caso de retraso en el pago por parte de la DEC, salvo que se deba a caso fortuito o fuerza mayor, EL CONTRATISTA tiene derecho al pago de intereses legales conforme a lo establecido en el artículo 67 de la Ley N° 32069, Ley General de Contrataciones Públicas.
       </td>
     </tr>
-    <tr>
-      <td class="fb" style="vertical-align:top;">TIPO DE PENALIDAD A APLICAR</td>
-      <td style="padding:6px 10px;">POR ENTREGABLE - PREVIA CONFORMIDAD</td>
-    </tr>
   </tbody>
 </table>`,
   },
@@ -241,6 +237,12 @@ export const initialTemplateData: Record<string, { aplica: boolean; html: string
   <tbody>
     <tr>
       <td class="ehl" colspan="3">PENALIDADES / VICIOS OCULTOS</td>
+    </tr>
+    <tr>
+      <td class="fb" style="width:25%; vertical-align:top;">TIPO DE PENALIDAD A APLICAR</td>
+      <td colspan="2" style="padding:8px 10px; text-align:justify; line-height:1.5; font-size:10px;">
+        Según el Art. 120 del RLGC, en caso de retraso injustificado del contratista en la ejecución de las prestaciones objeto del contrato, la entidad contratante le aplica automáticamente una penalidad por mora por cada día de atraso que le sea imputable. La penalidad se aplica automáticamente y se calcula de acuerdo con la siguiente fórmula:
+      </td>
     </tr>
     <tr>
       <td class="fb" style="width:25%; vertical-align:top;">FORMA DE CÁLCULO</td>
@@ -439,7 +441,7 @@ export const initialTemplateData: Record<string, { aplica: boolean; html: string
   señala a continuación los rubros que componen el siguiente servicio de manera que permitan identificar la proporción que cada uno de estos representa,
   considerando los conceptos que tienen directa incidencia en el costo del servicio de:
 </p>
-<div contenteditable="false" style="border:1px solid #000; padding:8px; font-size:10px; font-style:italic; margin-bottom:10px; background:#e8f5e3;">{{DENOMINACION}}</div>
+<div contenteditable="false" style="border:1px solid #000; padding:8px; font-size:10px; font-style:italic; margin-bottom:10px; background:#ffffff;">{{DENOMINACION}}</div>
 <table class="excel-table">
   <tbody>
     <tr>
@@ -1145,7 +1147,7 @@ export default function TdrTemplatePage({ user, onNavigate }: TdrTemplatePagePro
   );
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (user.rol !== 'ADMINISTRATIVO') {
+  if (user.rol !== 'ADMINISTRATIVO' && user.rol !== 'ADMINISTRADOR') {
     return (
       <div style={{
         minHeight: '100vh', background: '#F5F4F0',
@@ -1153,7 +1155,7 @@ export default function TdrTemplatePage({ user, onNavigate }: TdrTemplatePagePro
         alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif',
       }}>
         <h2 style={{ fontSize: 24, fontWeight: 'bold', color: '#dc2626', marginBottom: 16 }}>Acceso Restringido</h2>
-        <p style={{ color: '#666', marginBottom: 16, fontSize: 14 }}>Solo el perfil Administrativo puede editar la Plantilla Global.</p>
+        <p style={{ color: '#666', marginBottom: 16, fontSize: 14 }}>Solo Administrador o Administrativo pueden editar la Plantilla Global.</p>
         <button onClick={() => onNavigate('dashboard')}
           style={{ padding: '8px 16px', background: '#1B4B8A', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}>
           Volver al Panel

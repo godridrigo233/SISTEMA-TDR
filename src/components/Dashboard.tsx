@@ -172,7 +172,7 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
         )}
 
         {/* Accesos rápidos - ADMINISTRATIVO (solo Formato Base) */}
-        {user.rol === 'ADMINISTRATIVO' && (
+        {(user.rol === 'ADMINISTRATIVO' || user.rol === 'ADMINISTRADOR') && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
             <h3 className="font-semibold text-gray-900 mb-4">Accesos Rápidos</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
