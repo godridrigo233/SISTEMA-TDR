@@ -122,11 +122,11 @@ exports.upsertMiPerfil = async (req, res) => {
   }
 };
 
-// GET /api/contratantes — solo ADMINISTRATIVO
+// GET /api/contratantes — solo ADMINISTRADORES
 exports.getTodos = async (req, res) => {
   try {
     const u = getUsuario(req);
-    if (!u || u.rol !== 'ADMINISTRATIVO')
+    if (!u || u.rol !== 'ADMINISTRADORES')
       return res.status(403).json({ message: 'Solo administradores' });
 
     const [rows] = await pool.query(
@@ -142,11 +142,11 @@ exports.getTodos = async (req, res) => {
   }
 };
 
-// POST /api/contratantes — solo ADMINISTRATIVO
+// POST /api/contratantes — solo ADMINISTRADORES
 exports.crearContratante = async (req, res) => {
   try {
     const u = getUsuario(req);
-    if (!u || u.rol !== 'ADMINISTRATIVO')
+    if (!u || u.rol !== 'ADMINISTRADORES')
       return res.status(403).json({ message: 'Solo administradores pueden crear contratantes' });
 
     const data = req.body;
