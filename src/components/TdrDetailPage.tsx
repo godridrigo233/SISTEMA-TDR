@@ -7,7 +7,7 @@ import {
   buildReplacements,
   getAdminTemplate,
   getAdminAplica,
-} from './tdrTemplateUtils';
+} from './TdrTemplateUtils';
 
 interface TdrDetailPageProps {
   user: User;
