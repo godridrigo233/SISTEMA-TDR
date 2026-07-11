@@ -1,12 +1,10 @@
 const pool = require('../config/db');
-const jwt  = require('jsonwebtoken');
-const JWT_SECRET = 'claveprueba';
 
+// El middleware verifyToken (aplicado en contratantes.routes.js) ya decodifica
+// el JWT y lo deja en req.user — evita re-decodificar aquí con un secreto
+// duplicado que puede desincronizarse del real (JWT_SECRET de middleware/auth.js).
 function getUsuario(req) {
-  try {
-    const token = req.headers['authorization']?.split(' ')[1];
-    return token ? jwt.verify(token, JWT_SECRET) : null;
-  } catch { return null; }
+  return req.user || null;
 }
 
 function validar(data) {
@@ -136,7 +134,7 @@ exports.getTodos = async (req, res) => {
        ORDER BY cp.primer_apellido, cp.nombres`
     );
     res.json(rows);
-  } catch (err) {
+  } catch (err) { 
     console.error('[contratantes] getTodos:', err.message);
     res.status(500).json({ message: 'Error interno' });
   }
