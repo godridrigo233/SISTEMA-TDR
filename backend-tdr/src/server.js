@@ -19,13 +19,13 @@ const maestrosRoutes = require('./routes/maestros.routes');
 // =========================
 // 1. 🔥 MIDDLEWARES GLOBALES (Siempre primero)
 // =========================
-app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json()); // Permite leer req.body en formato JSON
 // Los documentos (DNI, CV, RUC, RNP) viven en Supabase Storage (bucket privado)
 // y se acceden vía URLs firmadas — el filesystem local del contenedor es efímero.
