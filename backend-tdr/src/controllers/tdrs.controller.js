@@ -200,6 +200,11 @@ exports.getTdrById = async (req, res) => {
 
     const tdr = tdrRows[0];
 
+    // Un CONTRATANTE solo puede ver los TDR que él mismo creó.
+    if (req.user?.rol === 'CONTRATANTE' && tdr.usuario_creador_id !== req.user.id) {
+      return res.status(403).json({ message: 'No tiene permisos para ver este TDR' });
+    }
+
     const [locadorRows] = await pool.query(
       'SELECT * FROM m_locadores WHERE id = ?',
       [tdr.locador_id]
@@ -553,11 +558,23 @@ exports.updateTdr = async (req, res) => {
     return res.status(400).json({ message: 'Datos incompletos', errores });
   }
 
+  const { id } = req.params;
+
+  // Un CONTRATANTE solo puede editar los TDR que él mismo creó.
+  if (req.user?.rol === 'CONTRATANTE') {
+    const [ownerRows] = await pool.query(
+      'SELECT usuario_creador_id FROM t_tdrs WHERE id = ?', [id]
+    );
+    if (ownerRows.length === 0)
+      return res.status(404).json({ message: 'TDR no encontrado' });
+    if (ownerRows[0].usuario_creador_id !== req.user.id)
+      return res.status(403).json({ message: 'No tiene permisos para editar este TDR' });
+  }
+
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
-    const { id } = req.params;
 
     const {
       codigo,

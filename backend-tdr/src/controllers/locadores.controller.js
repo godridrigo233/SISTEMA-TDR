@@ -18,10 +18,11 @@ exports.getLocadores = async (req, res) => {
         d.tipo_documento AS documento_tipo,
         d.ruta_archivo
       FROM m_locadores l
-      LEFT JOIN t_locador_documentos d 
+      LEFT JOIN t_locador_documentos d
         ON l.id = d.locador_id
       ORDER BY l.id DESC
     `);
+    const esAdmin = req.user?.rol === 'ADMINISTRADOR';
     // 🔥 Agrupar documentos por locador
     const locadoresMap = {};
 
@@ -36,6 +37,7 @@ exports.getLocadores = async (req, res) => {
           ruc: row.ruc,
           correo_electronico: row.correo_electronico,
           telefono_celular: row.telefono_celular,
+          ...(esAdmin && { banco: row.banco }),
           documentos: []
         };
       }
@@ -79,7 +81,13 @@ exports.getLocadorById = async (req, res) => {
       return res.status(404).json({ message: 'Locador no encontrado' });
     }
 
-    res.json(rows[0]);
+    const locador = rows[0];
+    if (req.user?.rol !== 'ADMINISTRADOR') {
+      delete locador.banco;
+      delete locador.cci;
+    }
+
+    res.json(locador);
 
   } catch (error) {
     console.error(error);
@@ -117,6 +125,12 @@ exports.getLocadorByDni = async (req, res) => {
     );
     for (const doc of documentos) {
       doc.ruta_archivo = await getSignedUrl(doc.ruta_archivo);
+    }
+
+    const esAdmin = req.user?.rol === 'ADMINISTRADOR';
+    if (!esAdmin) {
+      delete locador.banco;
+      delete locador.cci;
     }
 
     res.json({

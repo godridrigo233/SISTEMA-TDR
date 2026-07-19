@@ -151,18 +151,18 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                 </button>
               )}
 
-              {/* Nuevo Contratante — solo ADMINISTRADOR */}
+              {/* Contratantes — solo ADMINISTRADOR */}
               {user.rol === 'ADMINISTRADOR' && (
                 <button
-                  onClick={() => onNavigate('nuevo-contratante')}
+                  onClick={() => onNavigate('contratantes')}
                   className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 rounded-lg transition group"
                 >
                   <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-lg flex items-center justify-center">
                     <UserPlus className="w-5 h-5 text-green-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">Nuevo Contratante</p>
-                    <p className="text-sm text-gray-500">Crear cuenta de acceso</p>
+                    <p className="font-medium text-gray-900">Gestión de Contratantes</p>
+                    <p className="text-sm text-gray-500">Crear y editar cuentas de acceso</p>
                   </div>
                 </button>
               )}

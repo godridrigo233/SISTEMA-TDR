@@ -207,3 +207,92 @@ exports.crearContratante = async (req, res) => {
     res.status(500).json({ message: 'Error interno' });
   }
 };
+
+// GET /api/contratantes/:id — solo ADMINISTRADORES
+exports.getPorId = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u || u.rol !== 'ADMINISTRADOR')
+      return res.status(403).json({ message: 'Solo administradores' });
+
+    const { id } = req.params;
+    const [rows] = await pool.query(
+      `SELECT cp.*, u.username, u.rol
+       FROM t_contratantes_perfil cp
+       JOIN t_usuarios u ON u.id = cp.usuario_id
+       WHERE cp.usuario_id = ?`,
+      [id]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ message: 'Contratante no encontrado' });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('[contratantes] getPorId:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// PUT /api/contratantes/:id — solo ADMINISTRADORES (edita el perfil de otro usuario)
+exports.actualizarContratante = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u || u.rol !== 'ADMINISTRADOR')
+      return res.status(403).json({ message: 'Solo administradores pueden editar contratantes' });
+
+    const { id } = req.params;
+    const data = req.body;
+    const errores = validar(data);
+    if (errores.length > 0) return res.status(400).json({ errores });
+
+    const tipo = data.tipo_documento.trim().toUpperCase().padEnd(3).slice(0, 3);
+
+    const [result] = await pool.query(
+      `UPDATE t_contratantes_perfil SET
+         nombres            = ?,
+         primer_apellido    = ?,
+         segundo_apellido   = ?,
+         tipo_documento     = ?,
+         numero_documento   = ?,
+         ruc                = ?,
+         correo_electronico = ?,
+         telefono_celular   = ?,
+         domicilio          = ?,
+         lugar_nacimiento   = ?,
+         fecha_nacimiento   = ?,
+         estado_civil       = ?,
+         nacionalidad       = ?,
+         banco              = ?,
+         cci                = ?
+       WHERE usuario_id = ?`,
+      [
+        data.nombres.trim(),
+        data.primer_apellido.trim(),
+        data.segundo_apellido.trim(),
+        tipo,
+        data.numero_documento,
+        data.ruc              || null,
+        data.correo_electronico.trim().toLowerCase(),
+        data.telefono_celular || null,
+        data.domicilio        || null,
+        data.lugar_nacimiento || null,
+        data.fecha_nacimiento || null,
+        data.estado_civil     || null,
+        data.nacionalidad     || 'Peruana',
+        data.banco            || null,
+        data.cci              || null,
+        id,
+      ]
+    );
+
+    if (result.affectedRows === 0)
+      return res.status(404).json({ message: 'Contratante no encontrado' });
+
+    res.json({ message: 'Contratante actualizado correctamente' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(409).json({ message: 'Ese número de documento ya está registrado' });
+    console.error('[contratantes] actualizarContratante:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};

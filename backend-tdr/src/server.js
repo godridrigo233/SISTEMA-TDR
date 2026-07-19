@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 const app = express();
 
 const pool = require("./config/db");
@@ -27,10 +28,18 @@ app.use(express.json()); // Permite leer req.body en formato JSON
 // Los documentos (DNI, CV, RUC, RNP) viven en Supabase Storage (bucket privado)
 // y se acceden vía URLs firmadas — el filesystem local del contenedor es efímero.
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Demasiados intentos, intente en 15 minutos" }
+});
+
 // =========================
 // 🔐 LOGIN
 // =========================
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { username, password } = req.body;
   try {
     const [rows] = await pool.query(
@@ -38,12 +47,12 @@ app.post("/api/login", async (req, res) => {
       [username]
     );
     if (rows.length === 0)
-      return res.status(401).json({ message: "Usuario no encontrado" });
+      return res.status(401).json({ message: "Usuario o contraseña incorrectos" });
 
     const user = rows[0];
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok)
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+      return res.status(401).json({ message: "Usuario o contraseña incorrectos" });
 
     // Si es CONTRATANTE, cargar su nombre del perfil para el saludo
     let nombre = user.nombres || user.username;

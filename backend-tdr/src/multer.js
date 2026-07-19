@@ -1,5 +1,17 @@
 const multer = require("multer");
 
-// Los archivos se suben en memoria y de ahí se envían a Supabase Storage
-// (el filesystem del contenedor en Railway es efímero — no sirve como storage persistente).
-module.exports = multer({ storage: multer.memoryStorage() });
+const TIPOS_PERMITIDOS = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+const fileFilter = (req, file, cb) => {
+  if (TIPOS_PERMITIDOS.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Tipo de archivo no permitido. Solo PDF, JPG, PNG o WEBP.'));
+  }
+};
+
+module.exports = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB máximo
+  fileFilter
+});
