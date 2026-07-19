@@ -3,29 +3,30 @@ const pool = require('../config/db');
 const { getSignedUrl } = require('../config/storage');
 exports.getLocadores = async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT 
-        l.id,
-        l.nombres,
-        l.apellidos,
-        l.tipo_documento AS locador_tipo_documento,
-        l.numero_documento,
-        l.ruc,  
-        l.correo_electronico,
-        l.telefono_celular,
-        l.banco,
-        d.id as doc_id,
-        d.tipo_documento AS documento_tipo,
-        d.ruta_archivo
-      FROM m_locadores l
-      LEFT JOIN t_locador_documentos d
-        ON l.id = d.locador_id
-      ORDER BY l.id DESC
-    `);
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
     const esAdmin = req.user?.rol === 'ADMINISTRADOR';
-    // 🔥 Agrupar documentos por locador
-    const locadoresMap = {};
 
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM m_locadores');
+
+    const [rows] = await pool.query(`
+      SELECT
+        l.id, l.nombres, l.apellidos,
+        l.tipo_documento AS locador_tipo_documento,
+        l.numero_documento, l.ruc,
+        l.correo_electronico, l.telefono_celular,
+        l.banco,
+        d.id AS doc_id, d.tipo_documento AS documento_tipo, d.ruta_archivo
+      FROM (
+        SELECT id FROM m_locadores ORDER BY id DESC LIMIT ? OFFSET ?
+      ) p
+      JOIN m_locadores l ON l.id = p.id
+      LEFT JOIN t_locador_documentos d ON d.locador_id = l.id
+      ORDER BY l.id DESC
+    `, [limit, offset]);
+
+    const locadoresMap = {};
     rows.forEach(row => {
       if (!locadoresMap[row.id]) {
         locadoresMap[row.id] = {
@@ -41,24 +42,28 @@ exports.getLocadores = async (req, res) => {
           documentos: []
         };
       }
-
       if (row.doc_id) {
         locadoresMap[row.id].documentos.push({
           id: row.doc_id,
           tipo_documento: row.documento_tipo,
-          ruta_archivo: row.ruta_archivo // path interno — se firma abajo
+          ruta_archivo: row.ruta_archivo
         });
       }
     });
 
-    // Firmar todas las rutas de documentos antes de responder
     for (const locador of Object.values(locadoresMap)) {
       for (const doc of locador.documentos) {
         doc.ruta_archivo = await getSignedUrl(doc.ruta_archivo);
       }
     }
 
-    res.json(Object.values(locadoresMap));
+    res.json({
+      data: Object.values(locadoresMap),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
 
   } catch (error) {
     console.error("Error obteniendo locadores:", error);

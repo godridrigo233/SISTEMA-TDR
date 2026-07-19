@@ -127,14 +127,25 @@ exports.getTodos = async (req, res) => {
     if (!u || u.rol !== 'ADMINISTRADOR')
       return res.status(403).json({ message: 'Solo administradores' });
 
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const [[{ total }]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM t_contratantes_perfil'
+    );
+
     const [rows] = await pool.query(
       `SELECT cp.*, u.username, u.rol
        FROM t_contratantes_perfil cp
        JOIN t_usuarios u ON u.id = cp.usuario_id
-       ORDER BY cp.primer_apellido, cp.nombres`
+       ORDER BY cp.primer_apellido, cp.nombres
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
-    res.json(rows);
-  } catch (err) { 
+
+    res.json({ data: rows, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
     console.error('[contratantes] getTodos:', err.message);
     res.status(500).json({ message: 'Error interno' });
   }

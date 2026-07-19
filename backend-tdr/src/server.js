@@ -4,6 +4,7 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
 const app = express();
 
 const pool = require("./config/db");
@@ -18,6 +19,7 @@ const maestrosRoutes = require('./routes/maestros.routes');
 // =========================
 // 1. 🔥 MIDDLEWARES GLOBALES (Siempre primero)
 // =========================
+app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

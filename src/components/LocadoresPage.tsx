@@ -4,6 +4,7 @@ import Header from './Header';
 import { User } from '../types';
 import { ArrowLeft, Users, Search, Pencil, IdCard, Mail, Save, X, Trash2 } from 'lucide-react';
 import { API_URL } from '../config/api';
+import Pagination from './Pagination';
 
 interface LocadoresPageProps {
   user: User;
@@ -22,6 +23,10 @@ export default function LocadoresPage({
   const [showForm, setShowForm] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, boolean>>({});
   const [busqueda, setBusqueda] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   const [formData, setFormData] = useState<any>({
     nombres: '',
@@ -44,12 +49,14 @@ export default function LocadoresPage({
   /* =========================
      OBTENER LOCADORES
   ==========================*/
-  const fetchLocadores = async () => {
+  const fetchLocadores = async (p = page) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/locadores`, { headers: authHeaders });
+      const res = await fetch(`${API_URL}/locadores?page=${p}&limit=${LIMIT}`, { headers: authHeaders });
       const data = await res.json();
-      setLocadores(data);
+      setLocadores(data.data ?? data);
+      setTotal(data.total ?? data.length);
+      setTotalPages(data.totalPages ?? 1);
     } catch (error) {
       console.error("Error cargando locadores:", error);
     } finally {
@@ -57,7 +64,12 @@ export default function LocadoresPage({
     }
   };
 
-  useEffect(() => { fetchLocadores(); }, []);
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    fetchLocadores(p);
+  };
+
+  useEffect(() => { fetchLocadores(1); }, []);
 
   /* =========================
      NUEVO / EDITAR
@@ -356,7 +368,7 @@ export default function LocadoresPage({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Gestión de Locadores</h2>
-              <p className="text-sm text-gray-500">{locadores.length} locador{locadores.length !== 1 ? 'es' : ''} registrado{locadores.length !== 1 ? 's' : ''}</p>
+              <p className="text-sm text-gray-500">{total} locador{total !== 1 ? 'es' : ''} registrado{total !== 1 ? 's' : ''}</p>
             </div>
           </div>
           {canEdit && (
@@ -437,6 +449,7 @@ export default function LocadoresPage({
             </div>
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onChange={handlePageChange} />
       </main>
     </div>
   );

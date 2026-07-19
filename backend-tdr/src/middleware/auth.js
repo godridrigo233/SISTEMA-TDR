@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'claveprueba';
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET no está definido en las variables de entorno');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function verifyToken(req, res, next) {
   const header = req.headers['authorization'];

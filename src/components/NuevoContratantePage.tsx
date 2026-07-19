@@ -4,6 +4,7 @@ import Header from './Header';
 import { User } from '../types';
 import { UserPlus, CheckCircle, Eye, EyeOff, ArrowLeft, Pencil, Search, Users, Mail, Phone, IdCard } from 'lucide-react';
 import { API_URL } from '../config/api';
+import Pagination from './Pagination';
 
 interface NuevoContratantePageProps {
   user: User;
@@ -67,17 +68,24 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
   const [contratantes, setContratantes] = useState<any[]>([]);
   const [loadingLista, setLoadingLista] = useState(true);
   const [busqueda, setBusqueda] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 20;
 
   const token = localStorage.getItem('token');
 
-  const fetchContratantes = async () => {
+  const fetchContratantes = async (p = 1) => {
     setLoadingLista(true);
     try {
-      const res = await fetch(`${API_URL}/contratantes`, {
+      const res = await fetch(`${API_URL}/contratantes?page=${p}&limit=${LIMIT}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error();
-      setContratantes(await res.json());
+      const data = await res.json();
+      setContratantes(data.data ?? data);
+      setTotal(data.total ?? data.length);
+      setTotalPages(data.totalPages ?? 1);
     } catch {
       toast.error('No se pudo cargar la lista de contratantes');
     } finally {
@@ -85,8 +93,13 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
     }
   };
 
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    fetchContratantes(p);
+  };
+
   useEffect(() => {
-    if (!isFormMode) fetchContratantes();
+    if (!isFormMode) fetchContratantes(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormMode]);
 
@@ -237,7 +250,7 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Gestión de Contratantes</h2>
-                <p className="text-sm text-gray-500">{contratantes.length} contratante{contratantes.length !== 1 ? 's' : ''} registrado{contratantes.length !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-500">{total} contratante{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}</p>
               </div>
             </div>
             <button
@@ -302,6 +315,7 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
               </div>
             )}
           </div>
+          <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onChange={handlePageChange} />
         </main>
       </div>
     );
