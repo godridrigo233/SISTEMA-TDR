@@ -26,6 +26,7 @@ router.put('/:id', requireRole('CONTRATANTE'), upload.fields([
     { name: 'rucFile', maxCount: 1 }
 ]), tdrController.updateTdr);
 router.put('/:id/validar', requireRole('ADMINISTRADOR', 'ADMINISTRATIVO'), tdrController.validarTdr);
+router.delete('/:id', requireRole('CONTRATANTE'), tdrController.deleteTdr);
 // LISTAR
 router.get("/", tdrController.getTdrs);
 

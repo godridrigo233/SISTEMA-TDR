@@ -13,6 +13,8 @@ import {
   UserCircle,
   UserPlus,
   Search,
+  Trash2,
+  CalendarRange,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -20,21 +22,24 @@ interface DashboardProps {
   tdrs: TdR[];
   onNavigate: (page: string, params?: any) => void;
   onLogout: () => void;
-  onFilterChange?: (filters: { search?: string; estado?: string }) => void;
+  onFilterChange?: (filters: { search?: string; estado?: string; fechaDesde?: string; fechaHasta?: string; contratante?: string }) => void;
+  onDeleteTdr?: (id: string) => void;
 }
 
-export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterChange }: DashboardProps) {
+export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterChange, onDeleteTdr }: DashboardProps) {
   const [search, setSearch] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [contratanteFiltro, setContratanteFiltro] = useState('');
 
-  // Debounce de la búsqueda para no disparar una petición por cada tecla.
   useEffect(() => {
     const timer = setTimeout(() => {
-      onFilterChange?.({ search, estado: estadoFiltro });
+      onFilterChange?.({ search, estado: estadoFiltro, fechaDesde, fechaHasta, contratante: contratanteFiltro });
     }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, estadoFiltro]);
+  }, [search, estadoFiltro, fechaDesde, fechaHasta, contratanteFiltro]);
 
   const pendientes = tdrs.filter(t => t.estado === 'Pendiente').length;
   const aprobados  = tdrs.filter(t => t.estado === 'Aprobado').length;
@@ -59,39 +64,48 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">TdR Pendientes</p>
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Total</p>
+                <p className="text-3xl font-bold text-gray-800">{tdrs.length}</p>
+              </div>
+              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-gray-500" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Pendientes</p>
                 <p className="text-3xl font-bold text-yellow-600">{pendientes}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-600" />
+              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-yellow-600" />
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">TdR Aprobados</p>
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Aprobados</p>
                 <p className="text-3xl font-bold text-green-600">{aprobados}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">TdR Observados</p>
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Observados</p>
                 <p className="text-3xl font-bold text-red-600">{observados}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
               </div>
             </div>
           </div>
@@ -119,8 +133,8 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                 </button>
               )}
 
-              {/* CONTRATANTE Y ADMINISTRADOR: Locadores */}
-              {(user.rol === 'CONTRATANTE' || user.rol === 'ADMINISTRADOR') && (
+              {/* Solo ADMINISTRADOR: Locadores */}
+              {user.rol === 'ADMINISTRADOR' && (
                 <button
                   onClick={() => onNavigate('locadores')}
                   className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition group"
@@ -199,15 +213,15 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
               {user.rol === 'ADMINISTRADOR' ? 'TdR para Validación' : user.rol === 'ADMINISTRATIVO' ? 'TdR para Validación' : 'Mis TdR Registrados'}
             </h3>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-wrap gap-2">
               <div className="relative">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por código o denominación..."
-                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-full sm:w-72 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Código o denominación..."
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-56 focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
@@ -221,6 +235,38 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                 <option value="Aprobado">Aprobado</option>
                 <option value="Observado">Observado</option>
               </select>
+
+              <div className="flex items-center gap-1">
+                <CalendarRange className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={e => setFechaDesde(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  title="Desde"
+                />
+                <span className="text-gray-400 text-sm">–</span>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={e => setFechaHasta(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  title="Hasta"
+                />
+              </div>
+
+              {(user.rol === 'ADMINISTRADOR' || user.rol === 'ADMINISTRATIVO') && (
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={contratanteFiltro}
+                    onChange={e => setContratanteFiltro(e.target.value)}
+                    placeholder="Contratante..."
+                    className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-44 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -230,6 +276,9 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Denominación</th>
+                  {(user.rol === 'ADMINISTRADOR' || user.rol === 'ADMINISTRATIVO') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contratante</th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periodo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -241,6 +290,9 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                   <tr key={tdr.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{tdr.codigo}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{tdr.denominacion}</td>
+                    {(user.rol === 'ADMINISTRADOR' || user.rol === 'ADMINISTRATIVO') && (
+                      <td className="px-6 py-4 text-sm text-gray-600">{(tdr as any).contratante ?? '—'}</td>
+                    )}
                     <td className="px-6 py-4 text-sm text-gray-600">{tdr.equipoSolicitante}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {tdr.periodo.mes} {tdr.periodo.año}
@@ -250,13 +302,13 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoColor[(tdr.estado ?? tdr.estado_verificacion) as string]}`}>
                           {tdr.estado ?? tdr.estado_verificacion}
                         </span>
-                        {/* Observación visible solo para el contratante cuando está Observado */}
+                        {/* Observación visible para el contratante cuando está Observado */}
                         {user.rol === 'CONTRATANTE' &&
                          (tdr.estado ?? tdr.estado_verificacion) === 'Observado' &&
                          tdr.ultima_observacion && (
-                          <div className="mt-1.5 max-w-[100px]">
-                            <p className="text-[1px] font-bold text-red-500 uppercase mb-0.5 tracking-wide">Observaciones:</p>
-                            <p className="text-[1px] text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-1 leading-snug whitespace-pre-wrap line-clamp-1">
+                          <div className="mt-1.5 max-w-xs">
+                            <p className="text-xs font-semibold text-red-500 uppercase mb-0.5 tracking-wide">Observación:</p>
+                            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 leading-snug">
                               {tdr.ultima_observacion}
                             </p>
                           </div>
@@ -283,6 +335,21 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                           >
                             <Edit className="w-4 h-4" />
                             <span>Editar</span>
+                          </button>
+                        )}
+
+                        {user.rol === 'CONTRATANTE' && tdr.estado === 'Pendiente' && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('¿Eliminar este TdR? Esta acción no se puede deshacer.')) {
+                                onDeleteTdr?.(String(tdr.id));
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 flex items-center gap-1"
+                            title="Eliminar TdR"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Eliminar</span>
                           </button>
                         )}
 

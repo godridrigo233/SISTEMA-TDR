@@ -25,7 +25,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
     navItems.push({ to: '/tdrs/nuevo', label: 'Nuevo TdR', icon: PlusCircle });
     navItems.push({ to: '/mi-perfil', label: 'Mi Perfil', icon: UserCircle });
   }
-  if (rol === 'CONTRATANTE' || rol === 'ADMINISTRADOR') {
+  if (rol === 'ADMINISTRADOR') {
     navItems.push({ to: '/locadores', label: 'Locadores', icon: Users });
   }
   if (rol === 'ADMINISTRADOR') {

@@ -55,7 +55,7 @@ exports.getTdrs = async (req, res) => {
 
   try {
 
-    const { search, estado, equipoId, periodoId, page, pageSize } = req.query;
+    const { search, estado, equipoId, periodoId, page, pageSize, fechaDesde, fechaHasta, contratante } = req.query;
 
     const where = [];
     const params = [];
@@ -86,10 +86,29 @@ exports.getTdrs = async (req, res) => {
       params.push(periodoId);
     }
 
+    if (fechaDesde?.trim()) {
+      where.push("t.created_at >= ?");
+      params.push(fechaDesde.trim());
+    }
+
+    if (fechaHasta?.trim()) {
+      where.push("t.created_at < (? ::date + interval '1 day')");
+      params.push(fechaHasta.trim());
+    }
+
+    // Solo ADMIN/ADMINISTRATIVO pueden filtrar por contratante
+    if (contratante?.trim() && req.user?.rol !== 'CONTRATANTE') {
+      where.push("(cp.nombres ILIKE ? OR cp.primer_apellido ILIKE ? OR cp.segundo_apellido ILIKE ?)");
+      params.push(`%${contratante.trim()}%`, `%${contratante.trim()}%`, `%${contratante.trim()}%`);
+    }
+
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) AS total FROM t_tdrs t ${whereSql}`,
+      `SELECT COUNT(*) AS total
+       FROM t_tdrs t
+       LEFT JOIN t_contratantes_perfil cp ON t.usuario_creador_id = cp.usuario_id
+       ${whereSql}`,
       params
     );
     const total = countRows[0].total;
@@ -106,9 +125,13 @@ exports.getTdrs = async (req, res) => {
         t.codigo_unico,
         t.denominacion,
         t.estado_verificacion,
+        t.created_at,
         e.nombre AS equipo_nombre,
         p.nombre_mes,
         p.anio,
+        cp.nombres            AS cnt_nombres,
+        cp.primer_apellido    AS cnt_primer_apellido,
+        cp.segundo_apellido   AS cnt_segundo_apellido,
         (
           SELECT h.comentario
           FROM t_tdr_historial_validaciones h
@@ -120,6 +143,7 @@ exports.getTdrs = async (req, res) => {
       FROM t_tdrs t
       INNER JOIN m_equipos e ON t.equipo_id = e.id
       INNER JOIN m_periodos p ON t.periodo_id = p.id
+      LEFT JOIN t_contratantes_perfil cp ON t.usuario_creador_id = cp.usuario_id
       ${whereSql}
       ORDER BY t.id DESC
       ${usePagination ? 'LIMIT ? OFFSET ?' : ''}
@@ -130,11 +154,12 @@ exports.getTdrs = async (req, res) => {
       codigo: row.codigo_unico,
       denominacion: row.denominacion,
       equipoSolicitante: row.equipo_nombre,
-      periodo: {
-        mes: row.nombre_mes,
-        año: row.anio
-      },
+      periodo: { mes: row.nombre_mes, año: row.anio },
       estado: row.estado_verificacion,
+      created_at: row.created_at,
+      contratante: row.cnt_nombres
+        ? `${row.cnt_nombres} ${row.cnt_primer_apellido ?? ''} ${row.cnt_segundo_apellido ?? ''}`.trim()
+        : null,
       ultima_observacion: row.ultima_observacion || null
     }));
 
@@ -786,5 +811,40 @@ exports.validarTdr = async (req, res) => {
   } finally {
     connection.release();
   }
+};
+
+// ===============================
+// 🔹 ELIMINAR TDR (solo CONTRATANTE, solo estado Pendiente)
+// ===============================
+exports.deleteTdr = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.query(
+      'SELECT usuario_creador_id, estado_verificacion FROM t_tdrs WHERE id = ?',
+      [id]
+    );
+
+    if (rows.length === 0)
+      return res.status(404).json({ message: 'TDR no encontrado' });
+
+    const tdr = rows[0];
+
+    if (tdr.usuario_creador_id !== req.user.id)
+      return res.status(403).json({ message: 'No tiene permisos para eliminar este TDR' });
+
+    if (tdr.estado_verificacion !== 'Pendiente')
+      return res.status(400).json({ message: 'Solo se pueden eliminar TdR en estado Pendiente' });
+
+    await pool.query('DELETE FROM t_tdr_historial_validaciones WHERE tdr_id = ?', [id]);
+    await pool.query('DELETE FROM t_tdrs WHERE id = ?', [id]);
+
+    res.json({ message: 'TdR eliminado correctamente' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al eliminar TdR' });
+  }
+};
 
 };

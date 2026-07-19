@@ -163,7 +163,7 @@ function AppRoutes() {
   const [locadores, setLocadores] = useState<Locador[]>([]);
   const [tdrs, setTdRs] = useState<TdR[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [tdrFilters, setTdrFilters] = useState<{ search?: string; estado?: string }>({});
+  const [tdrFilters, setTdrFilters] = useState<{ search?: string; estado?: string; fechaDesde?: string; fechaHasta?: string; contratante?: string }>({});
 
   useEffect(() => {
     if (currentUser) {
@@ -182,23 +182,31 @@ function AppRoutes() {
 
   const fetchLocadores = async () => {
     try {
-      const res = await fetch(`${API_URL}/locadores`);
+      const token = localStorage.getItem('token') || '';
+      const res = await fetch(`${API_URL}/locadores?limit=200`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setLocadores(data);
+      setLocadores(data.data ?? data);
     } catch (error) {
       console.error('Error cargando locadores:', error);
-      toast.error('No se pudieron cargar los locadores');
     }
   };
 
-  const fetchTdRs = async (filters: { search?: string; estado?: string } = {}) => {
+  const fetchTdRs = async (filters: typeof tdrFilters = {}) => {
     try {
+      const token = localStorage.getItem('token') || '';
       const params = new URLSearchParams();
-      if (filters.search?.trim()) params.set('search', filters.search.trim());
-      if (filters.estado?.trim()) params.set('estado', filters.estado.trim());
+      if (filters.search?.trim())      params.set('search',      filters.search.trim());
+      if (filters.estado?.trim())      params.set('estado',      filters.estado.trim());
+      if (filters.fechaDesde?.trim())  params.set('fechaDesde',  filters.fechaDesde.trim());
+      if (filters.fechaHasta?.trim())  params.set('fechaHasta',  filters.fechaHasta.trim());
+      if (filters.contratante?.trim()) params.set('contratante', filters.contratante.trim());
       const qs = params.toString();
-      const res = await fetch(`${API_URL}/tdrs${qs ? `?${qs}` : ''}`);
+      const res = await fetch(`${API_URL}/tdrs${qs ? `?${qs}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setTdRs(data);
@@ -208,9 +216,27 @@ function AppRoutes() {
     }
   };
 
-  const handleFilterTdRs = (filters: { search?: string; estado?: string }) => {
+  const handleFilterTdRs = (filters: typeof tdrFilters) => {
     setTdrFilters(filters);
     fetchTdRs(filters);
+  };
+
+  const handleDeleteTdr = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token') || '';
+      const res = await fetch(`${API_URL}/tdrs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.message || 'Error eliminando TdR');
+      }
+      await fetchTdRs(tdrFilters);
+      toast.success('TdR eliminado correctamente');
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al eliminar TdR');
+    }
   };
 
   const handleLogin = (user: User) => {
@@ -331,38 +357,42 @@ function AppRoutes() {
               onNavigate={onNavigate}
               onLogout={handleLogout}
               onFilterChange={handleFilterTdRs}
+              onDeleteTdr={handleDeleteTdr}
             />
           }
         />
 
-        <Route
-          path="/locadores"
-          element={
-            <LocadoresPage
-              user={currentUser}
-              currentPage="locadores"
-              editingId={null}
-              onNavigate={onNavigate}
-              onLogout={handleLogout}
-            />
-          }
-        />
-        <Route
-          path="/locadores/nuevo"
-          element={
-            <LocadoresPage
-              user={currentUser}
-              currentPage="locador-new"
-              editingId={null}
-              onNavigate={onNavigate}
-              onLogout={handleLogout}
-            />
-          }
-        />
-        <Route
-          path="/locadores/:id/editar"
-          element={<LocadorEditRoute user={currentUser} onNavigate={onNavigate} onLogout={handleLogout} />}
-        />
+        {/* Locadores — solo ADMINISTRADOR */}
+        {currentUser.rol !== 'CONTRATANTE' && (<>
+          <Route
+            path="/locadores"
+            element={
+              <LocadoresPage
+                user={currentUser}
+                currentPage="locadores"
+                editingId={null}
+                onNavigate={onNavigate}
+                onLogout={handleLogout}
+              />
+            }
+          />
+          <Route
+            path="/locadores/nuevo"
+            element={
+              <LocadoresPage
+                user={currentUser}
+                currentPage="locador-new"
+                editingId={null}
+                onNavigate={onNavigate}
+                onLogout={handleLogout}
+              />
+            }
+          />
+          <Route
+            path="/locadores/:id/editar"
+            element={<LocadorEditRoute user={currentUser} onNavigate={onNavigate} onLogout={handleLogout} />}
+          />
+        </>)}
 
         <Route
           path="/tdrs/nuevo"
