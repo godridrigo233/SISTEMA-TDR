@@ -17,6 +17,7 @@ import ValidacionPage from './components/ValidacionPage';
 import TdrTemplatePage from './components/TdrTemplatePage';
 import MiPerfilPage from './components/Miperfilpage';
 import NuevoContratantePage from './components/NuevoContratantePage';
+import AuditoriaPage from './components/AuditoriaPage';
 import { User, Locador, TdR } from './types';
 import { API_URL } from './config/api';
 
@@ -141,6 +142,7 @@ function useLegacyNavigate() {
       case 'contratante-edit':  navigate(`/contratantes/${id}/editar`); break;
       case 'nuevo-contratante': navigate('/contratantes/nuevo'); break;
       case 'mi-perfil':        navigate('/mi-perfil'); break;
+      case 'auditoria':        navigate('/auditoria'); break;
       case 'login':             navigate('/login'); break;
       default:                  navigate('/dashboard');
     }
@@ -474,6 +476,13 @@ function AppRoutes() {
           path="/mi-perfil"
           element={<MiPerfilPage user={currentUser} onNavigate={onNavigate} onLogout={handleLogout} />}
         />
+
+        {currentUser.rol === 'ADMINISTRADOR' && (
+          <Route
+            path="/auditoria"
+            element={<AuditoriaPage user={currentUser} onNavigate={onNavigate} onLogout={handleLogout} />}
+          />
+        )}
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<PaginaNoEncontrada />} />

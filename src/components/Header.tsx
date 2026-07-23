@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Building2, LogOut, User as UserIcon, LayoutDashboard, Users, PlusCircle, FileText, UserPlus, UserCircle } from 'lucide-react';
+import { Building2, LogOut, User as UserIcon, LayoutDashboard, Users, PlusCircle, FileText, UserPlus, UserCircle, Shield } from 'lucide-react';
 import { User } from '../types';
+import NotificationsBell from './NotificationsBell';
 
 interface HeaderProps {
   user: User;
   onLogout: () => void;
+  onNavigate?: (page: string, id?: string) => void;
 }
 
 interface NavItem {
@@ -14,7 +16,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export default function Header({ user, onLogout }: HeaderProps) {
+export default function Header({ user, onLogout, onNavigate }: HeaderProps) {
   const rol = (user as any)?.rol;
 
   const navItems: NavItem[] = [
@@ -30,6 +32,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
   }
   if (rol === 'ADMINISTRADOR') {
     navItems.push({ to: '/contratantes', label: 'Contratantes', icon: UserPlus });
+    navItems.push({ to: '/auditoria', label: 'Auditoría', icon: Shield });
   }
   if (rol === 'ADMINISTRATIVO' || rol === 'ADMINISTRADOR') {
     navItems.push({ to: '/formato', label: 'Formato Base TdR', icon: FileText });
@@ -50,6 +53,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
           </NavLink>
 
           <div className="flex items-center gap-4">
+            {onNavigate && <NotificationsBell onNavigate={onNavigate} />}
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
               <UserIcon className="w-4 h-4 text-gray-600" />
               <div className="text-sm">

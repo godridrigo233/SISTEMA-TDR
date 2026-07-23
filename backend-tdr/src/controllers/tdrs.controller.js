@@ -1,5 +1,8 @@
 const pool = require('../config/db');
 const { uploadDocumento, getSignedUrl } = require('../config/storage');
+const { registrar: auditLog } = require('./auditoria.controller');
+const { crearNotificacion } = require('./notificaciones.controller');
+const { enviarEmail, plantillaTdR } = require('../config/email');
 
 // ===============================
 // 🔹 VALIDAR DATOS DE TDR (crear/editar)
@@ -563,6 +566,16 @@ exports.createTdr = async (req, res) => {
     }
 
     await connection.commit();
+
+    auditLog({
+      usuario: req.user,
+      accion: 'CREAR_TDR',
+      entidad: 't_tdrs',
+      entidadId: tdrId,
+      descripcion: `TDR creado con código ${codigo}`,
+      ip: req.ip,
+    });
+
     res.json({ message: "TDR creado correctamente", id: tdrId });
 
   } catch (error) {
@@ -761,6 +774,16 @@ exports.updateTdr = async (req, res) => {
     }
 
     await connection.commit();
+
+    auditLog({
+      usuario: req.user,
+      accion: 'ACTUALIZAR_TDR',
+      entidad: 't_tdrs',
+      entidadId: id,
+      descripcion: `TDR actualizado, estado restablecido a Pendiente`,
+      ip: req.ip,
+    });
+
     res.json({ message: "TDR actualizado correctamente" });
 
   } catch (error) {
@@ -795,6 +818,12 @@ exports.validarTdr = async (req, res) => {
       [estado, id]
     );
 
+    // Obtener el contratante que creó el TdR para notificarlo
+    const [tdrOwner] = await connection.query(
+      "SELECT usuario_creador_id, codigo_unico, denominacion FROM t_tdrs WHERE id = ?",
+      [id]
+    );
+
     await connection.query(`
       INSERT INTO t_tdr_historial_validaciones
       (tdr_id, usuario_admin_id, accion, estado_resultante, comentario)
@@ -802,6 +831,55 @@ exports.validarTdr = async (req, res) => {
     `, [id, usuarioAdminId, accion, estado, observaciones || null]);
 
     await connection.commit();
+
+    auditLog({
+      usuario: req.user,
+      accion: accion === 'Validacion' ? 'VALIDAR_TDR' : 'OBSERVAR_TDR',
+      entidad: 't_tdrs',
+      entidadId: id,
+      descripcion: `TdR ${estado}${observaciones ? ': ' + observaciones.slice(0, 200) : ''}`,
+      ip: req.ip,
+    });
+
+    // Notificar al contratante que creó el TdR
+    if (tdrOwner.length > 0 && tdrOwner[0].usuario_creador_id) {
+      const tdrInfo = tdrOwner[0];
+      const tituloNotif = accion === 'Validacion'
+        ? `TdR ${tdrInfo.codigo_unico} aprobado`
+        : `TdR ${tdrInfo.codigo_unico} observado`;
+      const msgNotif = accion === 'Validacion'
+        ? `Su TdR "${tdrInfo.denominacion}" ha sido aprobado por ${req.user.username}.`
+        : `Su TdR "${tdrInfo.denominacion}" tiene observaciones de ${req.user.username}.${observaciones ? ' Motivo: ' + observaciones.slice(0, 300) : ''}`;
+
+      await crearNotificacion({
+        usuarioId: tdrOwner[0].usuario_creador_id,
+        titulo: tituloNotif,
+        mensaje: msgNotif,
+        tdrId: id,
+        tipo: accion === 'Validacion' ? 'tdr_aprobado' : 'tdr_observado',
+      });
+
+      // Enviar email al contratante
+      const [perfilCnt] = await connection.query(
+        'SELECT correo_electronico, nombres FROM t_contratantes_perfil WHERE usuario_id = ?',
+        [tdrOwner[0].usuario_creador_id]
+      );
+      if (perfilCnt.length > 0 && perfilCnt[0].correo_electronico) {
+        const htmlEmail = plantillaTdR({
+          codigo: tdrInfo.codigo_unico,
+          denominacion: tdrInfo.denominacion,
+          accion,
+          nombreAdmin: req.user.username,
+          observaciones: observaciones || null,
+        });
+        await enviarEmail({
+          para: perfilCnt[0].correo_electronico,
+          asunto: tituloNotif,
+          html: htmlEmail,
+        });
+      }
+    }
+
     res.json({ message: "TDR validado correctamente" });
 
   } catch (error) {
@@ -838,6 +916,15 @@ exports.deleteTdr = async (req, res) => {
 
     await pool.query('DELETE FROM t_tdr_historial_validaciones WHERE tdr_id = ?', [id]);
     await pool.query('DELETE FROM t_tdrs WHERE id = ?', [id]);
+
+    auditLog({
+      usuario: req.user,
+      accion: 'ELIMINAR_TDR',
+      entidad: 't_tdrs',
+      entidadId: id,
+      descripcion: `TDR eliminado`,
+      ip: req.ip,
+    });
 
     res.json({ message: 'TdR eliminado correctamente' });
 

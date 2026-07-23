@@ -236,7 +236,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
   if (user.rol !== 'ADMINISTRATIVO') {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center shadow-sm">
             <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
@@ -272,7 +272,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
 
   return (
     <div className="min-h-screen bg-[#f1efe9] text-[#334155] font-sans flex flex-col">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
 
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 max-w-[1920px] mx-auto flex flex-col">
 

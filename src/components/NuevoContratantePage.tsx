@@ -235,7 +235,7 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <button onClick={() => onNavigate('dashboard')}
@@ -326,7 +326,7 @@ export default function NuevoContratantePage({ user, currentPage, editingId, onN
   // ═══════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <button onClick={() => onNavigate('contratantes')}

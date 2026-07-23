@@ -386,7 +386,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
   if (loadingEdit) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <div className="flex flex-col items-center justify-center h-[calc(100vh-80px)]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-600 font-medium">Cargando datos del TdR...</p>
@@ -397,7 +397,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
       <main className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
           <ArrowLeft className="w-4 h-4" /><span>Volver al Dashboard</span>

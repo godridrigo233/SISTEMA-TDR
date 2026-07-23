@@ -256,7 +256,7 @@ export default function LocadoresPage({
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           <button onClick={() => onNavigate('locadores')}
@@ -350,7 +350,7 @@ export default function LocadoresPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button

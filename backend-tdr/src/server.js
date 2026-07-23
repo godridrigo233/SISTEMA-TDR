@@ -9,12 +9,15 @@ const app = express();
 
 const pool = require("./config/db");
 const { JWT_SECRET } = require("./middleware/auth");
+const { registrar: auditLog } = require("./controllers/auditoria.controller");
 
 const tdrRoutes = require("./routes/tdrs.routes");
 const locadoresRoutes = require("./routes/locadores.routes");
 const plantillaRoutes = require('./routes/plantilla.routes');
 const contratantesRoutes = require('./routes/contratantes.routes');
 const maestrosRoutes = require('./routes/maestros.routes');
+const auditoriaRoutes = require('./routes/auditoria.routes');
+const notificacionesRoutes = require('./routes/notificaciones.routes');
 
 // =========================
 // 1. 🔥 MIDDLEWARES GLOBALES (Siempre primero)
@@ -72,6 +75,15 @@ app.post("/api/login", loginLimiter, async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
     );
 
+    auditLog({
+      usuario: { id: user.id, username: user.username, rol: user.rol },
+      accion: 'LOGIN',
+      entidad: 't_usuarios',
+      entidadId: user.id,
+      descripcion: `Inicio de sesión exitoso`,
+      ip: req.ip,
+    });
+
     res.json({
       success: true,
       token,
@@ -92,6 +104,8 @@ app.use("/api/tdrs", tdrRoutes);
 app.use("/api/locadores", locadoresRoutes);
 app.use('/api/contratantes', contratantesRoutes);
 app.use('/api/maestros', maestrosRoutes);
+app.use('/api/auditoria', auditoriaRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
 
 app.get("/.well-known/appspecific/com.chrome.devtools.json", (req, res) => {
   res.status(204).send();

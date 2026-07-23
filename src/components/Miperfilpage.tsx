@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User } from '../types';
-import { User as UserIcon, CreditCard, Phone, Pencil, X, Save } from 'lucide-react';
+import { User as UserIcon, CreditCard, Phone, Pencil, X, Save, Lock, Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '../config/api';
 
 interface MiPerfilPageProps {
@@ -62,6 +62,12 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
   const [form, setForm] = useState<Perfil | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const [cambiandoPassword, setCambiandoPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ actual: '', nueva: '', confirmar: '' });
+  const [erroresPassword, setErroresPassword] = useState<string[]>([]);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState({ actual: false, nueva: false, confirmar: false });
 
   const token = localStorage.getItem('token');
 
@@ -143,6 +149,47 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
     setEditando(false);
   };
 
+  const validarPassword = (): string[] => {
+    const e: string[] = [];
+    if (!passwordForm.actual) e.push('Debe ingresar su contraseña actual');
+    if (!passwordForm.nueva) e.push('Debe ingresar la nueva contraseña');
+    if (passwordForm.nueva.length < 6) e.push('La nueva contraseña debe tener al menos 6 caracteres');
+    if (passwordForm.nueva !== passwordForm.confirmar) e.push('Las contraseñas no coinciden');
+    if (passwordForm.actual && passwordForm.nueva && passwordForm.actual === passwordForm.nueva)
+      e.push('La nueva contraseña debe ser diferente a la actual');
+    return e;
+  };
+
+  const handleCambiarPassword = async () => {
+    const e = validarPassword();
+    if (e.length > 0) { setErroresPassword(e); return; }
+
+    setSavingPassword(true);
+    try {
+      const res = await fetch(`${API_URL}/contratantes/me/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ passwordActual: passwordForm.actual, passwordNueva: passwordForm.nueva }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Contraseña actualizada correctamente');
+        setCambiandoPassword(false);
+        setPasswordForm({ actual: '', nueva: '', confirmar: '' });
+        setErroresPassword([]);
+      } else {
+        setErroresPassword([data.message || 'Error al cambiar contraseña']);
+      }
+    } catch {
+      setErroresPassword(['Error de conexión con el servidor']);
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   // ── helpers de solo-lectura ──────────────────────────────────────
   const Campo = ({ label, value }: { label: string; value?: string }) => (
     <div>
@@ -166,7 +213,7 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <div className="flex items-center justify-center py-32">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -177,7 +224,7 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
   if (error || !perfil || !form) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
         <div className="max-w-2xl mx-auto px-4 py-16 text-center">
           <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-6">
             <p className="text-yellow-800 font-medium mb-2">Perfil no encontrado</p>
@@ -199,7 +246,7 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -278,7 +325,7 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
             </div>
 
             {/* Sección: Fiscal y Bancario */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
                 <CreditCard className="w-4 h-4 text-gray-400" />
                 <h3 className="font-semibold text-gray-900">Datos Fiscales y Bancarios</h3>
@@ -290,6 +337,94 @@ export default function MiPerfilPage({ user, onNavigate, onLogout }: MiPerfilPag
                   <Campo label="CCI (Código de Cuenta Interbancario)" value={perfil.cci} />
                 </div>
               </div>
+            </div>
+
+            {/* Sección: Seguridad — Cambio de Contraseña */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-gray-400" />
+                  <h3 className="font-semibold text-gray-900">Seguridad</h3>
+                </div>
+                {!cambiandoPassword && (
+                  <button
+                    onClick={() => setCambiandoPassword(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition"
+                  >
+                    Cambiar Contraseña
+                  </button>
+                )}
+              </div>
+
+              {!cambiandoPassword ? (
+                <p className="text-sm text-gray-500">Su contraseña puede ser cambiada en cualquier momento desde esta sección.</p>
+              ) : (
+                <div className="space-y-4">
+                  {erroresPassword.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      {erroresPassword.map((e, i) => <p key={i} className="text-sm text-red-700">• {e}</p>)}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Contraseña Actual <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type={showPassword.actual ? 'text' : 'password'}
+                        value={passwordForm.actual}
+                        onChange={e => { setPasswordForm(p => ({ ...p, actual: e.target.value })); setErroresPassword([]); }}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        placeholder="Ingrese su contraseña actual"
+                      />
+                      <button type="button" onClick={() => setShowPassword(p => ({ ...p, actual: !p.actual }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPassword.actual ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Nueva Contraseña <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type={showPassword.nueva ? 'text' : 'password'}
+                        value={passwordForm.nueva}
+                        onChange={e => { setPasswordForm(p => ({ ...p, nueva: e.target.value })); setErroresPassword([]); }}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                      <button type="button" onClick={() => setShowPassword(p => ({ ...p, nueva: !p.nueva }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPassword.nueva ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Confirmar Nueva Contraseña <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type={showPassword.confirmar ? 'text' : 'password'}
+                        value={passwordForm.confirmar}
+                        onChange={e => { setPasswordForm(p => ({ ...p, confirmar: e.target.value })); setErroresPassword([]); }}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        placeholder="Repita la nueva contraseña"
+                      />
+                      <button type="button" onClick={() => setShowPassword(p => ({ ...p, confirmar: !p.confirmar }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPassword.confirmar ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <button onClick={() => { setCambiandoPassword(false); setPasswordForm({ actual: '', nueva: '', confirmar: '' }); setErroresPassword([]); }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                      Cancelar
+                    </button>
+                    <button onClick={handleCambiarPassword} disabled={savingPassword}
+                      className={`px-5 py-2 rounded-lg text-sm font-semibold text-white transition ${savingPassword ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                      {savingPassword ? 'Guardando...' : 'Actualizar Contraseña'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button

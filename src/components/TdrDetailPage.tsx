@@ -9,6 +9,7 @@ import {
   getAdminTemplate,
   getAdminAplica,
 } from './TdrTemplateUtils';
+import { sanitizeHtml } from '../utils/sanitize';
 
 interface TdrDetailPageProps {
   user: User;
@@ -28,9 +29,10 @@ const TemplateBlock = React.memo(({
   style?: React.CSSProperties;
 }) => {
   const parsed = parseTemplate(html, replacements);
+  const clean = sanitizeHtml(parsed);
   return (
     <div
-      dangerouslySetInnerHTML={{ __html: parsed }}
+      dangerouslySetInnerHTML={{ __html: clean }}
       style={style}
     />
   );
@@ -1570,7 +1572,7 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
               {/* Cuerpo HTML completamente editable por el Admin */}
               <TemplateBlock html={getAdminTemplate(templateKey)} replacements={replacements} />
               <DJFooter locador={detalle.locador} fechaHoy={fechaHoy} />
-              {footnote && <div dangerouslySetInnerHTML={{ __html: footnote }} />}
+              {footnote && <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(footnote) }} />}
             </div>
           ))}
 

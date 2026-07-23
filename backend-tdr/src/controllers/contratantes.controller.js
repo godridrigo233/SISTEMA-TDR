@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { registrar: auditLog } = require('./auditoria.controller');
 
 // El middleware verifyToken (aplicado en contratantes.routes.js) ya decodifica
 // el JWT y lo deja en req.user — evita re-decodificar aquí con un secreto
@@ -116,6 +117,55 @@ exports.upsertMiPerfil = async (req, res) => {
     if (err.code === 'ER_DUP_ENTRY')
       return res.status(409).json({ message: 'Ese número de documento ya está registrado' });
     console.error('[contratantes] upsertMiPerfil:', err.message);
+    res.status(500).json({ message: 'Error interno' });
+  }
+};
+
+// PUT /api/contratantes/me/password — cambio de contraseña
+exports.cambiarPassword = async (req, res) => {
+  try {
+    const u = getUsuario(req);
+    if (!u) return res.status(401).json({ message: 'No autenticado' });
+
+    const { passwordActual, passwordNueva } = req.body;
+
+    if (!passwordActual || !passwordNueva)
+      return res.status(400).json({ message: 'Debe ingresar la contraseña actual y la nueva contraseña' });
+    if (passwordNueva.length < 6)
+      return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    if (passwordActual === passwordNueva)
+      return res.status(400).json({ message: 'La nueva contraseña debe ser diferente a la actual' });
+
+    const [rows] = await pool.query(
+      'SELECT password_hash FROM t_usuarios WHERE id = ?',
+      [u.id]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    const bcrypt = require('bcrypt');
+    const ok = await bcrypt.compare(passwordActual, rows[0].password_hash);
+    if (!ok)
+      return res.status(401).json({ message: 'La contraseña actual es incorrecta' });
+
+    const nuevoHash = await bcrypt.hash(passwordNueva, 10);
+    await pool.query(
+      'UPDATE t_usuarios SET password_hash = ? WHERE id = ?',
+      [nuevoHash, u.id]
+    );
+
+    auditLog({
+      usuario: u,
+      accion: 'CAMBIAR_PASSWORD',
+      entidad: 't_usuarios',
+      entidadId: u.id,
+      descripcion: 'Contraseña actualizada',
+      ip: req.ip,
+    });
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('[contratantes] cambiarPassword:', err.message);
     res.status(500).json({ message: 'Error interno' });
   }
 };
