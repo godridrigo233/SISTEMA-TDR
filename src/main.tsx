@@ -4,8 +4,8 @@
   import "./index.css";
   import { API_BASE } from "./config/api";
 
-  // Adjunta automáticamente el token JWT a toda petición hacia el backend,
-  // así no hay que tocar cada fetch() individual en cada componente.
+  let isRedirectingToLogin = false;
+
   const originalFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = typeof input === 'string' ? input : (input as Request).url ?? String(input);
@@ -18,7 +18,17 @@
         };
       }
     }
-    return originalFetch(input, init);
+    return originalFetch(input, init).then(response => {
+      if (response.status === 401 && url.startsWith(API_BASE) && url.includes('/api/login') === false) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (!isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          window.location.href = '/login';
+        }
+      }
+      return response;
+    });
   };
 
   createRoot(document.getElementById("root")!).render(<App />);

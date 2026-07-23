@@ -23,9 +23,12 @@ const notificacionesRoutes = require('./routes/notificaciones.routes');
 // 1. 🔥 MIDDLEWARES GLOBALES (Siempre primero)
 // =========================
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+    : ['http://localhost:3000', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
