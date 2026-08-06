@@ -78,14 +78,15 @@ app.post("/api/login", loginLimiter, async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
     );
 
-    auditLog({
+    // Auditoría: no bloquea el login si falla
+    try { auditLog({
       usuario: { id: user.id, username: user.username, rol: user.rol },
       accion: 'LOGIN',
       entidad: 't_usuarios',
       entidadId: user.id,
-      descripcion: `Inicio de sesión exitoso`,
+      descripcion: 'Inicio de sesión exitoso',
       ip: req.ip,
-    });
+    }); } catch {} // eslint-disable-line no-empty
 
     res.json({
       success: true,

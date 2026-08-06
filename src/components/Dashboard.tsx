@@ -15,6 +15,7 @@ import {
   Search,
   Trash2,
   CalendarRange,
+  MessageSquare,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -298,19 +299,22 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                       {tdr.periodo.mes} {tdr.periodo.año}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
+                      <div className="flex items-center gap-1.5">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoColor[(tdr.estado ?? tdr.estado_verificacion) as string]}`}>
                           {tdr.estado ?? tdr.estado_verificacion}
                         </span>
-                        {/* Observación visible para el contratante cuando está Observado */}
                         {user.rol === 'CONTRATANTE' &&
                          (tdr.estado ?? tdr.estado_verificacion) === 'Observado' &&
                          tdr.ultima_observacion && (
-                          <div className="mt-1.5 max-w-xs">
-                            <p className="text-xs font-semibold text-red-500 uppercase mb-0.5 tracking-wide">Observación:</p>
-                            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 leading-snug">
-                              {tdr.ultima_observacion}
-                            </p>
+                          <div className="relative group flex-shrink-0">
+                            <MessageSquare className="w-4 h-4 text-red-500 cursor-help" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-40 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs w-64">
+                                <p className="font-semibold text-red-300 mb-1 text-[10px] uppercase tracking-wide">Observación del revisor</p>
+                                <p className="leading-relaxed whitespace-pre-wrap break-words">{tdr.ultima_observacion}</p>
+                              </div>
+                              <div className="w-3 h-3 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1.5" />
+                            </div>
                           </div>
                         )}
                       </div>
