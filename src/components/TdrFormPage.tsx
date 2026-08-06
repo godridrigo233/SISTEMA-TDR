@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User, TdR, Actividad, Entregable, NivelFormacion, ExperienciaLaboral } from '../types';
-import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase, Eye, X } from 'lucide-react';
 import { API_URL } from '../config/api';
 
 interface TdrFormPageProps {
@@ -68,6 +68,7 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
   const [entregables, setEntregables] = useState<Entregable[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<{ cv?: File; dni?: File; rnp?: File; ruc?: File; }>({});
   const [existingFiles, setExistingFiles] = useState<any>({});
+  const [previewFile, setPreviewFile] = useState<{ file: File; type: string } | null>(null);
 
   const [nivelesFormacion, setNivelesFormacion] = useState<NivelFormacion[]>([]);
   const [newFormacion, setNewFormacion] = useState<Partial<NivelFormacion>>({
@@ -1149,12 +1150,32 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                             <CheckCircle className="w-3 h-3" /> Archivo actual: {existingFiles[key].split('/').pop()}
                           </p>
                         )}
-                        <input type="file" accept={accept} onChange={(e) => handleFileUpload(key, e)} className="w-full text-sm" />
+                        <div className="flex items-center gap-2">
+                          <label className="flex-1">
+                            <input type="file" accept={accept} onChange={(e) => handleFileUpload(key, e)}
+                              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+                          </label>
+                          {uploadedFiles[key] && (
+                            <button type="button" onClick={() => setPreviewFile({ file: uploadedFiles[key]!, type: key })}
+                              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+                              title="Previsualizar documento">
+                              <Eye className="w-3.5 h-3.5" />
+                              Preview
+                            </button>
+                          )}
+                        </div>
                         {uploadedFiles[key] && (
                           <div className="mt-2 flex items-center gap-2 text-green-600">
                             <CheckCircle className="w-4 h-4" />
                             <span className="text-sm font-medium">{uploadedFiles[key]!.name}</span>
                           </div>
+                        )}
+                        {existingFiles[key] && !uploadedFiles[key] && (
+                          <button type="button" onClick={() => window.open(existingFiles[key], '_blank')}
+                            className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                            <Eye className="w-3.5 h-3.5" />
+                            Ver documento actual
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1200,6 +1221,55 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
             )}
           </div>
         </div>
+
+        {/* ── Modal Preview de Documento ── */}
+        {previewFile && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setPreviewFile(null)}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-3 bg-gray-900 text-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="text-sm font-bold">{previewFile.file.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {(previewFile.file.size / 1024 / 1024).toFixed(2)} MB — {previewFile.file.type || 'desconocido'}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setPreviewFile(null)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 bg-[#525659]">
+                {previewFile.file.type === 'application/pdf' || previewFile.file.name.endsWith('.pdf') ? (
+                  <iframe
+                    src={URL.createObjectURL(previewFile.file)}
+                    className="w-full h-full border-none"
+                    title="Vista previa del documento"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <img
+                      src={URL.createObjectURL(previewFile.file)}
+                      alt="Vista previa"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between px-5 py-2 bg-gray-100 border-t border-gray-200 shrink-0">
+                <span className="text-xs text-gray-500">Vista previa — el documento será enviado al guardar el TdR</span>
+                <button onClick={() => setPreviewFile(null)}
+                  className="px-4 py-1.5 text-sm font-medium bg-gray-700 hover:bg-gray-800 text-white rounded-lg transition">
+                  Cerrar Vista Previa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -11,9 +11,12 @@ import {
   GraduationCap,
   Briefcase,
   Check,
-  Download
+  Download,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { API_BASE, API_URL } from '../config/api';
+import { API_URL } from '../config/api';
 
 interface ValidacionPageProps {
   user: User;
@@ -36,11 +39,20 @@ interface VerificacionItem {
   observacion: string;
 }
 
-function buildDocUrl(path: string): string {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const clean = path.startsWith('/') ? path.slice(1) : path;
-  return `${API_BASE}/${clean}`;
+const DOC_TYPES: DocType[] = ['cv', 'dni', 'ruc', 'rnp'];
+
+function getNextDoc(current: DocType, docs: any): DocType {
+  const available = DOC_TYPES.filter(t => !!docs?.[t!]);
+  const idx = available.indexOf(current);
+  if (idx < 0) return available[0] || null;
+  return available[(idx + 1) % available.length] || null;
+}
+
+function getPrevDoc(current: DocType, docs: any): DocType {
+  const available = DOC_TYPES.filter(t => !!docs?.[t!]);
+  const idx = available.indexOf(current);
+  if (idx < 0) return available[0] || null;
+  return available[(idx - 1 + available.length) % available.length] || null;
 }
 
 // ─── Estilos inline para botones de verificación ─────────────────────────────
@@ -140,6 +152,8 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
   const [detalle, setDetalle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [verificaciones, setVerificaciones] = useState<Record<string, VerificacionItem>>({});
+  const [refreshingDoc, setRefreshingDoc] = useState(false);
+  const [iframeError, setIframeError] = useState(false);
 
   const locador = detalle?.locador || tdr?.locador || tdr?.locadorId;
   const formaciones = detalle?.formacion || [];
@@ -148,43 +162,81 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
     exp.tipoExperiencia?.toLowerCase().includes('espec')
   );
 
-  useEffect(() => {
-    fetch(`${API_URL}/tdrs/${tdr.id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Error al obtener TDR');
-        return res.json();
-      })
-      .then((data) => {
-        setDetalle(data);
-
-        const initialVerifs: Record<string, VerificacionItem> = {};
-        (data.formacion || []).forEach((f: any, index: number) => {
-          initialVerifs[`form_${f.id ?? index}`] = { estado: 'pendiente', observacion: '' };
-        });
-        (data.experiencia || [])
-          .filter((exp: any) =>
-            exp.tipo_experiencia?.toLowerCase().includes('espec') ||
-            exp.tipoExperiencia?.toLowerCase().includes('espec')
-          )
-          .forEach((exp: any, index: number) => {
-            initialVerifs[`exp_${exp.id ?? index}`] = { estado: 'pendiente', observacion: '' };
-          });
-        setVerificaciones(initialVerifs);
-
-        const docs = data?.documentos;
-        if (docs) {
-          const prioridad: DocType[] = ['cv', 'dni', 'ruc', 'rnp'];
-          const primero = prioridad.find((tipo) => !!docs[tipo as string]);
-          setDocVisible(primero ?? (Object.keys(docs)[0] as DocType) ?? null);
-        }
-
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
+  const cargarTdr = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/tdrs/${tdr.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-  }, [tdr.id]);
+      if (!res.ok) throw new Error('Error al obtener TDR');
+      const data = await res.json();
+      setDetalle(data);
+
+      const initialVerifs: Record<string, VerificacionItem> = {};
+      (data.formacion || []).forEach((f: any, index: number) => {
+        initialVerifs[`form_${f.id ?? index}`] = { estado: 'pendiente', observacion: '' };
+      });
+      (data.experiencia || [])
+        .filter((exp: any) =>
+          exp.tipo_experiencia?.toLowerCase().includes('espec') ||
+          exp.tipoExperiencia?.toLowerCase().includes('espec')
+        )
+        .forEach((exp: any, index: number) => {
+          initialVerifs[`exp_${exp.id ?? index}`] = { estado: 'pendiente', observacion: '' };
+        });
+      setVerificaciones(initialVerifs);
+
+      const docs = data?.documentos;
+      if (docs) {
+        const prioridad: DocType[] = ['cv', 'dni', 'ruc', 'rnp'];
+        const primero = prioridad.find((tipo) => !!docs[tipo as string]);
+        setDocVisible(primero ?? (Object.keys(docs)[0] as DocType) ?? null);
+      }
+
+      setIframeError(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { cargarTdr(); }, []); // eslint-disable-line
+
+  const recargarDocumento = async () => {
+    setRefreshingDoc(true);
+    try {
+      const res = await fetch(`${API_URL}/tdrs/${tdr.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) throw new Error('Error');
+      const data = await res.json();
+      if (data.documentos) {
+        setDetalle((prev: any) => ({ ...prev, documentos: data.documentos }));
+      }
+      setIframeError(false);
+      toast.success('Documento recargado');
+    } catch {
+      toast.error('Error al recargar el documento');
+    } finally {
+      setRefreshingDoc(false);
+    }
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowRight') {
+        setDocVisible(prev => getNextDoc(prev, detalle?.documentos));
+      } else if (e.key === 'ArrowLeft') {
+        setDocVisible(prev => getPrevDoc(prev, detalle?.documentos));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [detalle]);
 
   const handleVerificacionChange = (id: string, valor: 'si' | 'no') => {
     setVerificaciones((prev) => ({
@@ -260,7 +312,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
   const algunRechazo = Object.values(verificaciones).some((v) => v.estado === 'no');
 
   const documentoUrl = docVisible && detalle?.documentos?.[docVisible]
-    ? buildDocUrl(detalle.documentos[docVisible])
+    ? String(detalle.documentos[docVisible])
     : null;
 
   const nombreCandidato = locador?.apellidos && locador?.nombres
@@ -295,7 +347,7 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex bg-[#222] rounded-lg p-1">
-                  {(['cv', 'dni', 'ruc', 'rnp'] as DocType[]).map((tipo) =>
+                  {DOC_TYPES.map((tipo) =>
                     detalle?.documentos?.[tipo!] ? (
                       <button
                         key={tipo}
@@ -309,24 +361,66 @@ export default function ValidacionPage({ user, tdr, onNavigate, onValidate, onLo
                     ) : null
                   )}
                 </div>
+                {/* Prev / Next */}
+                <div className="flex bg-[#222] rounded-lg p-0.5">
+                  <button onClick={() => setDocVisible(getPrevDoc(docVisible, detalle?.documentos))}
+                    className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                    title="Documento anterior (←)">
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDocVisible(getNextDoc(docVisible, detalle?.documentos))}
+                    className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                    title="Documento siguiente (→)">
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Recargar */}
+                <button onClick={recargarDocumento} disabled={refreshingDoc}
+                  className="flex items-center gap-1.5 text-xs font-bold bg-[#444] hover:bg-[#555] text-white px-2.5 py-1.5 rounded transition-colors"
+                  title="Recargar documento (URL firmado)">
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingDoc ? 'animate-spin' : ''}`} />
+                  {refreshingDoc ? 'Recargando...' : 'Recargar'}
+                </button>
                 {documentoUrl && (
                   <a href={documentoUrl} target="_blank" rel="noopener noreferrer"
-                    className="ml-2 flex items-center gap-1.5 text-xs font-bold bg-[#e5e7eb] text-gray-800 px-3 py-1.5 rounded hover:bg-white transition-colors">
+                    className="ml-1 flex items-center gap-1.5 text-xs font-bold bg-[#e5e7eb] text-gray-800 px-3 py-1.5 rounded hover:bg-white transition-colors">
                     <Download className="w-3.5 h-3.5" /> Descargar
                   </a>
                 )}
               </div>
             </div>
-            <div className="flex-1 w-full bg-[#525659] flex flex-col h-full">
+            <div className="flex-1 w-full bg-[#525659] flex flex-col h-full relative">
               {documentoUrl ? (
-                <iframe key={documentoUrl} src={documentoUrl}
-                  className="w-full flex-1 h-full border-none block" title="Visor documento" />
+                iframeError ? (
+                  <div className="flex flex-col items-center justify-center flex-1 h-full text-gray-300 gap-3">
+                    <AlertTriangle className="w-10 h-10 text-yellow-400" />
+                    <p className="text-sm">El documento no se pudo cargar</p>
+                    <p className="text-xs text-gray-400">El enlace pudo haber expirado (15 min). Presione Recargar.</p>
+                    <button onClick={recargarDocumento} disabled={refreshingDoc}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
+                      <RefreshCw className={`w-4 h-4 ${refreshingDoc ? 'animate-spin' : ''}`} />
+                      {refreshingDoc ? 'Recargando...' : 'Recargar Documento'}
+                    </button>
+                  </div>
+                ) : (
+                  <iframe
+                    key={`${docVisible}-${documentoUrl.substring(Math.max(0, documentoUrl.length - 40))}`}
+                    src={documentoUrl}
+                    onError={() => setIframeError(true)}
+                    className="w-full flex-1 h-full border-none block"
+                    title="Visor documento"
+                  />
+                )
               ) : (
                 <div className="flex flex-col items-center justify-center flex-1 h-full text-gray-300">
                   <FileText className="w-12 h-12 mb-3 opacity-50" />
                   <p className="text-sm">Seleccione un documento para visualizar</p>
                 </div>
               )}
+              {/* Atajo de teclado */}
+              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded pointer-events-none select-none">
+                ← → Navegar documentos
+              </div>
             </div>
           </div>
 
