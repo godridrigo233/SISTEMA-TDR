@@ -176,22 +176,22 @@ const EXPORT_CSS = `
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #000; background: #fff; }
 
-  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
-  th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; table-layout: fixed; }
+  th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; white-space: normal; line-height: 1.5; height: auto; }
 
   /* ── Evitar cortes de filas entre páginas ── */
   tr { page-break-inside: avoid !important; break-inside: avoid !important; }
   .solid-box, .dashed-box, .excel-title, .no-break { page-break-inside: avoid !important; break-inside: avoid !important; }
   h1, h2, h3, .excel-title { page-break-after: avoid; }
 
-  .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-family: Arial, sans-serif; font-size: 11px; color: #000; }
-  .excel-table th, .excel-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
-  .eh  { background-color: #D3D3D3; font-weight: bold; text-align: center; }
-  .ehl { background-color: #D3D3D3; font-weight: bold; text-align: left; padding-left: 8px; }
-  .dd  { background-color: #fff; color: #000; }
-  .dd-green { background-color: #fff; color: #000; font-style: italic; }
-  .dd-var { background-color: #fff; color: #000; font-weight: bold; }
-  .excel-title { font-size: 13px; font-weight: bold; text-align: center; border: 1px solid #000; padding: 10px; margin-bottom: 12px; background: #fff; line-height: 1.3; }
+  .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-family: Arial, sans-serif; font-size: 11px; color: #000; table-layout: fixed; }
+  .excel-table th, .excel-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; white-space: normal; line-height: 1.5; height: auto; }
+  .eh  { background-color: #D3D3D3; font-weight: bold; text-align: center; height: auto; }
+  .ehl { background-color: #D3D3D3; font-weight: bold; text-align: left; padding-left: 8px; height: auto; line-height: 1.5; }
+  .dd  { background-color: #fff; color: #000; height: auto; line-height: 1.5; }
+  .dd-green { background-color: #fff; color: #000; font-style: italic; height: auto; line-height: 1.5; }
+  .dd-var { background-color: #fff; color: #000; font-weight: bold; height: auto; line-height: 1.5; }
+  .excel-title { font-size: 13px; font-weight: bold; text-align: center; border: 1px solid #000; padding: 10px; margin-bottom: 12px; background: #fff; line-height: 1.4; height: auto; word-wrap: break-word; overflow-wrap: anywhere; }
   .fb  { font-weight: bold; }
   .tc  { text-align: center; }
   .tr  { text-align: right; }
@@ -203,13 +203,13 @@ const EXPORT_CSS = `
   .bdb { border-bottom: 1px solid #000; } .bdr { border-right: 1px solid #000; }
   .bdbD { border-bottom: 1px solid #999; } .bdrD { border-right: 1px solid #999; }
   .bg-green { background-color: #fff; }
-  .solid-box { border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; margin: 6px 0; background: #f2f2f2; }
+  .solid-box { border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; margin: 6px 0; background: #f2f2f2; height: auto; line-height: 1.4; }
   .dashed-box { border: 1px solid #999; padding: 8px; margin-bottom: 12px; font-size: 10px; }
   .propuesta-list { padding-left: 14px; list-style-type: none; font-size: 9px; line-height: 1.4; margin: 0; }
   .propuesta-list li { margin-bottom: 3px; }
   .exp-box { display: inline-block; border: 1px solid #000; width: 36px; height: 18px; text-align: center; margin: 0 3px; font-weight: bold; vertical-align: middle; line-height: 18px; font-size: 10px; }
   .cv-date-box { display: inline-block; border: 1px solid #000; width: 28px; height: 18px; text-align: center; vertical-align: middle; margin-right: 3px; line-height: 18px; font-size: 10px; }
-  .print-input { width: 100%; min-height: 20px; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; }
+  .print-input { width: 100%; min-height: 20px; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; height: auto; line-height: 1.5; padding: 2px 4px; }
   .dj-table { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.5; }
   .dj-table td { vertical-align: top; padding-bottom: 6px; text-align: justify; border: none; }
   .dj-num { width: 18px; font-weight: bold; padding-right: 5px; }
@@ -709,17 +709,17 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
         .preview-footer { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface2); flex-shrink: 0; }
 
         /* ESTILOS EXCEL — aplican dentro del preview */
-        .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-family: "Arial", sans-serif; font-size: 11px; color: black; border: 1px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .excel-table th, .excel-table td { border: 1px solid #000 !important; padding: 8px 10px; vertical-align: top; -webkit-print-color-adjust: exact; print-color-adjust: exact; word-wrap: break-word; }
+        .excel-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-family: "Arial", sans-serif; font-size: 11px; color: black; border: 1px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; table-layout: fixed; }
+        .excel-table th, .excel-table td { border: 1px solid #000 !important; padding: 8px 10px; vertical-align: top; -webkit-print-color-adjust: exact; print-color-adjust: exact; word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; white-space: normal; line-height: 1.5; height: auto; min-height: 28px; }
         .eh { background-color: #D3D3D3 !important; font-weight: bold; text-align: center; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .ehl { background-color: #D3D3D3 !important; font-weight: bold; text-align: left; padding-left: 10px !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .dd { background-color: #ffffff !important; color: #000; font-weight: normal; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .dd-green { background-color: #ffffff !important; color: #000; font-style: italic; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .ehl { background-color: #D3D3D3 !important; font-weight: bold; text-align: left; padding-left: 10px !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.5; }
+        .dd { background-color: #ffffff !important; color: #000; font-weight: normal; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.5; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; }
+        .dd-green { background-color: #ffffff !important; color: #000; font-style: italic; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.5; }
         /* Forzar blanco y negro: ningún campo dinámico lleva fondo verde en el preview */
         [style*="e8f5e3"] { background-color: #ffffff !important; }
-        .dd-var { background-color: #ffffff !important; color: #000; font-weight: bold; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .cell-editable { background-color: #ffffff !important; color: #000; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .excel-title { font-size: 12pt; font-weight: bold; text-align: center; border: 1.5px solid #000 !important; padding: 10px; margin-bottom: 14px; background-color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .dd-var { background-color: #ffffff !important; color: #000; font-weight: bold; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.5; }
+        .cell-editable { background-color: #ffffff !important; color: #000; padding: 8px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; }
+        .excel-title { font-size: 12pt; font-weight: bold; text-align: center; border: 1.5px solid #000 !important; padding: 10px; margin-bottom: 14px; background-color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.4; word-wrap: break-word; overflow-wrap: anywhere; }
         .fb { font-weight: bold !important; }
         .tc { text-align: center; }
         .tr { text-align: right; }
@@ -730,14 +730,14 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
         .bdb { border-bottom: 1px solid #000 !important; } .bdr { border-right: 1px solid #000 !important; }
         .bdbD { border-bottom: 1px dashed #000 !important; } .bdrD { border-right: 1px dashed #000 !important; }
         .bg-green { background-color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .solid-box { border: 1.5px solid #000 !important; padding: 10px; text-align: center; font-weight: bold; margin: 8px 0; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .solid-box { border: 1.5px solid #000 !important; padding: 10px; text-align: center; font-weight: bold; margin: 8px 0; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: auto; line-height: 1.4; word-wrap: break-word; overflow-wrap: anywhere; }
         .dashed-box { border: 1.5px dashed #000 !important; padding: 10px; margin-bottom: 14px; font-size: 10px; }
         .propuesta-list { padding-left: 14px; list-style-type: none; font-size: 9px; line-height: 1.4; margin: 0; }
         .propuesta-list li { margin-bottom: 3px; }
         .exp-box { display: inline-block; border: 1px solid #000; width: 40px; height: 20px; text-align: center; margin: 0 4px; padding-top: 2px; font-weight: bold; }
         .cv-date-box { display: inline-block; border: 1px solid #000; width: 30px; height: 20px; text-align: center; vertical-align: middle; padding-top: 2px; margin-right: 4px; }
-        .editable-cell { padding: 0 !important; position: relative; height: 100%; min-height: 28px; }
-        .print-input { width: 100%; height: 100%; min-height: 28px; border: none; outline: none; background: #ffffff; font-family: inherit; font-size: inherit; text-align: center; font-weight: bold; box-sizing: border-box; }
+        .editable-cell { padding: 0 !important; position: relative; min-height: 28px; height: auto !important; }
+        .print-input { width: 100%; min-height: 28px; border: none; outline: none; background: #ffffff; font-family: inherit; font-size: inherit; text-align: center; font-weight: bold; box-sizing: border-box; padding: 4px 6px; line-height: 1.5; height: auto; }
         .print-input:focus { background: #fffde7; }
         .print-input:disabled { background: transparent; font-weight: normal; color: black; }
         .btn-add-row { display: inline-block; margin-top: 5px; font-size: 10px; color: var(--accent); cursor: pointer; background: var(--accent-light); padding: 5px 10px; border-radius: 4px; font-weight: bold; border: 1px dashed var(--accent); }
