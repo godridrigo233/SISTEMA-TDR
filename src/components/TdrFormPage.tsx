@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner@2.0.3';
 import Header from './Header';
 import { User, TdR, Actividad, Entregable, NivelFormacion, ExperienciaLaboral } from '../types';
-import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase, Eye, X } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2, Upload, FileText, CheckCircle, GraduationCap, Building2, Search, UserCheck, UserPlus, Briefcase, Eye, X, AlertTriangle } from 'lucide-react';
 import { API_URL } from '../config/api';
 
 interface TdrFormPageProps {
@@ -69,6 +69,48 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
   const [uploadedFiles, setUploadedFiles] = useState<{ cv?: File; dni?: File; rnp?: File; ruc?: File; }>({});
   const [existingFiles, setExistingFiles] = useState<any>({});
   const [previewFile, setPreviewFile] = useState<{ file: File; type: string } | null>(null);
+
+  // ── Observaciones del revisor (cuando el TdR está Observado) ────
+  const [observacionesRevisor, setObservacionesRevisor] = useState<{ textoCompleto: string; porSeccion: Record<number, string> } | null>(null);
+
+  const PASO_KEYS: Record<number, string[]> = {
+    1: ['denominación','denominacion','descripción','descripcion','código','codigo','finalidad','plazo','honorario','información','informacion','tdr','TDR','TdR','objetivo','formación requerido','formacion requerido','monto'],
+    2: ['actividad','entregable','armada','monto','fecha'],
+    3: ['locador','dni','ruc','domicilio','personal','datos personales','documento de identidad'],
+    4: ['formación','formacion','educación','educacion','estudio','grado','título','titulo','centro','especialidad','académica','academica'],
+    5: ['experiencia','certificación','certificacion','colegio','colegiatura','habilitación'],
+    6: ['documento','cv','archivo','pdf','adjunto','DNI/CE','RNP','RUC'],
+  };
+
+  function parsearObservaciones(texto: string): Record<number, string> {
+    const porSeccion: Record<number, string> = {};
+    const lineas = texto.split('\n').filter(l => l.trim().startsWith('-'));
+    if (lineas.length === 0) {
+      // Todo el texto va en info del TDR si no hay bullets
+      porSeccion[1] = texto;
+      return porSeccion;
+    }
+    for (const linea of lineas) {
+      const lower = linea.toLowerCase();
+      let asignado = false;
+      for (const [step, keys] of Object.entries(PASO_KEYS)) {
+        if (keys.some(k => lower.includes(k))) {
+          const num = Number(step);
+          porSeccion[num] = porSeccion[num]
+            ? porSeccion[num] + '\n' + linea.trim()
+            : linea.trim();
+          asignado = true;
+          break;
+        }
+      }
+      if (!asignado) {
+        porSeccion[1] = porSeccion[1]
+          ? porSeccion[1] + '\n' + linea.trim()
+          : linea.trim();
+      }
+    }
+    return porSeccion;
+  }
 
   const [nivelesFormacion, setNivelesFormacion] = useState<NivelFormacion[]>([]);
   const [newFormacion, setNewFormacion] = useState<Partial<NivelFormacion>>({
@@ -184,6 +226,18 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
           }
 
           if (data.documentos) setExistingFiles(data.documentos);
+
+          // Cargar observaciones del revisor si el TdR está Observado
+          if (data.validaciones?.length) {
+            const obs = [...data.validaciones].reverse().find((v: any) => v.accion === 'Observacion');
+            if (obs?.comentario) {
+              setObservacionesRevisor({
+                textoCompleto: obs.comentario,
+                porSeccion: parsearObservaciones(obs.comentario),
+              });
+            }
+          }
+
           setCurrentStep(1);
           setLoadingEdit(false);
         })
@@ -415,22 +469,59 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
           {/* Progress Steps */}
           {currentStep > 0 && (
             <div className="mb-10 overflow-x-auto">
+              {observacionesRevisor && (
+                <div style={{
+                  background: '#fef2f2', border: '1.5px solid #fca5a5',
+                  borderRadius: '10px', padding: '12px 16px', marginBottom: '16px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <AlertTriangle style={{ color: '#dc2626', width: '20px', height: '20px', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '14px' }}>
+                      Este TdR tiene observaciones del revisor
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, marginLeft: '28px' }}>
+                    Revise y corrija los bloques marcados en rojo. Al guardar, el TdR volverá a estado Pendiente para una nueva revisión.
+                  </p>
+                </div>
+              )}
               <div className="flex items-center justify-between min-w-[900px]">
-                {steps.slice(1).map((step, index) => (
+                {steps.slice(1).map((step, index) => {
+                  const tieneObs = !!observacionesRevisor?.porSeccion[step.num];
+                  return (
                   <React.Fragment key={step.num}>
-                    <div className="flex flex-col items-center">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all ${currentStep >= step.num ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'}`}>
+                    <div className="flex flex-col items-center relative">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition-all ${
+                        tieneObs
+                          ? 'bg-red-100 text-red-600 border-2 border-red-400 shadow-md'
+                          : currentStep >= step.num
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-600'
+                      }`}>
                         {step.num}
                       </div>
-                      <span className={`text-xs mt-2 text-center max-w-[100px] ${currentStep >= step.num ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                      {tieneObs && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
+                          !
+                        </span>
+                      )}
+                      <span className={`text-xs mt-2 text-center max-w-[100px] ${
+                        tieneObs
+                          ? 'text-red-600 font-bold'
+                          : currentStep >= step.num
+                            ? 'text-blue-600 font-medium'
+                            : 'text-gray-500'
+                      }`}>
                         {step.title}
                       </span>
                     </div>
                     {index < steps.slice(1).length - 1 && (
-                      <div className={`flex-1 h-1 mx-2 transition-all ${currentStep > step.num ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                      <div className={`flex-1 h-1 mx-2 transition-all ${
+                        tieneObs ? 'bg-red-300' : currentStep > step.num ? 'bg-blue-600' : 'bg-gray-200'
+                      }`} />
                     )}
                   </React.Fragment>
-                ))}
+                )})}
               </div>
             </div>
           )}
@@ -511,6 +602,16 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                 <h3 className="text-xl font-bold text-gray-900 mb-1">📋 INFORMACIÓN GENERAL DEL TDR</h3>
                 <p className="text-sm text-gray-600">Complete los datos del Término de Referencia</p>
               </div>
+
+              {observacionesRevisor?.porSeccion[1] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[1]}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div>
@@ -640,6 +741,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
           {/* ═══ PASO 2: ACTIVIDADES Y ENTREGABLES ═══ */}
           {currentStep === 2 && (
             <div className="space-y-8">
+              {observacionesRevisor?.porSeccion[2] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[2]}</p>
+                </div>
+              )}
               <div>
                 <div className="border-l-4 border-green-600 pl-4 mb-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-1">✅ Actividades a Realizar</h3>
@@ -750,6 +860,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                 <h3 className="text-xl font-bold text-gray-900 mb-1">👤 DATOS PERSONALES DEL LOCADOR</h3>
                 {locadorEncontrado && <p className="text-sm text-blue-600 mt-2">ℹ️ Puede editar todos los campos excepto el DNI</p>}
               </div>
+              {observacionesRevisor?.porSeccion[3] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[3]}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div>
@@ -915,6 +1034,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                   <GraduationCap className="w-6 h-6" />NIVEL DE FORMACIÓN ACADÉMICA
                 </h3>
               </div>
+              {observacionesRevisor?.porSeccion[4] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[4]}</p>
+                </div>
+              )}
 
               <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Agregar Nivel de Formación</h4>
@@ -1001,6 +1129,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                   <Briefcase className="w-6 h-6" />EXPERIENCIA LABORAL
                 </h3>
               </div>
+              {observacionesRevisor?.porSeccion[5] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[5]}</p>
+                </div>
+              )}
 
               <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 mb-6">
                 <h4 className="font-semibold text-gray-900 mb-4">Agregar Experiencia Laboral</h4>
@@ -1130,6 +1267,15 @@ export default function TdrFormPage({ user, tdrIdToEdit, locadores, onNavigate, 
                 <h3 className="text-xl font-bold text-gray-900 mb-1">📎 DOCUMENTOS REQUERIDOS</h3>
                 <p className="text-sm text-gray-600">Adjunte todos los documentos en formato PDF</p>
               </div>
+              {observacionesRevisor?.porSeccion[6] && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '12px' }}>Observación del revisor en este bloque:</span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: '#7f1d1d', whiteSpace: 'pre-wrap', lineHeight: 1.5, margin: 0 }}>{observacionesRevisor.porSeccion[6]}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {[
