@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Header from './Header';
 import { User, TdR } from '../types';
 import {
@@ -33,6 +33,20 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [contratanteFiltro, setContratanteFiltro] = useState('');
+  const [observacionAbierta, setObservacionAbierta] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  // Cerrar popover al click fuera
+  useEffect(() => {
+    if (!observacionAbierta) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setObservacionAbierta(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [observacionAbierta]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -306,15 +320,55 @@ export default function Dashboard({ user, tdrs, onNavigate, onLogout, onFilterCh
                         {user.rol === 'CONTRATANTE' &&
                          (tdr.estado ?? tdr.estado_verificacion) === 'Observado' &&
                          tdr.ultima_observacion && (
-                          <div className="relative group flex-shrink-0">
-                            <MessageSquare className="w-4 h-4 text-red-500 cursor-help" />
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-40 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs w-64">
-                                <p className="font-semibold text-red-300 mb-1 text-[10px] uppercase tracking-wide">Observación del revisor</p>
-                                <p className="leading-relaxed whitespace-pre-wrap break-words">{tdr.ultima_observacion}</p>
+                          <div className="relative flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setObservacionAbierta(observacionAbierta === tdr.id ? null : tdr.id);
+                              }}
+                              className="p-1 rounded-full hover:bg-red-100 transition"
+                              title="Ver observación del revisor"
+                            >
+                              <MessageSquare className="w-4 h-4 text-red-500" />
+                            </button>
+                            {observacionAbierta === tdr.id && (
+                              <div ref={popoverRef}
+                                className="absolute left-0 bottom-full mb-2 z-50"
+                                style={{ minWidth: '280px' }}>
+                                <div style={{
+                                  background: '#1f2937',
+                                  color: '#f9fafb',
+                                  borderRadius: '10px',
+                                  padding: '12px 14px',
+                                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2)',
+                                  fontSize: '12px',
+                                  lineHeight: '1.6',
+                                }}>
+                                  <p style={{
+                                    fontWeight: 700,
+                                    color: '#fca5a5',
+                                    marginBottom: '6px',
+                                    fontSize: '11px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                  }}>
+                                    Observación del revisor
+                                  </p>
+                                  <p style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                    {tdr.ultima_observacion}
+                                  </p>
+                                </div>
+                                <div style={{
+                                  position: 'absolute',
+                                  left: '10px',
+                                  bottom: '-6px',
+                                  width: '12px',
+                                  height: '12px',
+                                  background: '#1f2937',
+                                  transform: 'rotate(45deg)',
+                                }} />
                               </div>
-                              <div className="w-3 h-3 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1.5" />
-                            </div>
+                            )}
                           </div>
                         )}
                       </div>
