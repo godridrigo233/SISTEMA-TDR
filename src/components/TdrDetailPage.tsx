@@ -207,8 +207,8 @@ const EXPORT_CSS = `
   .dashed-box { border: 1px solid #999; padding: 8px; margin-bottom: 12px; font-size: 10px; }
   .propuesta-list { padding-left: 14px; list-style-type: none; font-size: 9px; line-height: 1.4; margin: 0; }
   .propuesta-list li { margin-bottom: 3px; }
-  .exp-box { display: inline-block; border: 1px solid #000; width: 36px; height: 18px; text-align: center; margin: 0 3px; font-weight: bold; vertical-align: middle; line-height: 18px; font-size: 10px; }
-  .cv-date-box { display: inline-block; border: 1px solid #000; width: 28px; height: 18px; text-align: center; vertical-align: middle; margin-right: 3px; line-height: 18px; font-size: 10px; }
+  .exp-box { display: inline-block; border: 1px solid #000; min-width: 36px; padding: 2px 10px; text-align: center; margin: 0 3px; font-weight: bold; vertical-align: middle; font-size: 11px; background: #fff; }
+  .cv-date-box { display: inline-block; border: 1px solid #000; min-width: 30px; padding: 2px 8px; text-align: center; vertical-align: middle; font-weight: bold; background: #fff; }
   .print-input { width: 100%; min-height: 20px; border: none; background: transparent; font-family: Arial, sans-serif; font-size: 11px; text-align: center; height: auto; line-height: 1.5; padding: 2px 4px; }
   .dj-table { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.5; }
   .dj-table td { vertical-align: top; padding-bottom: 6px; text-align: justify; border: none; }
@@ -734,8 +734,8 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
         .dashed-box { border: 1.5px dashed #000 !important; padding: 10px; margin-bottom: 14px; font-size: 10px; }
         .propuesta-list { padding-left: 14px; list-style-type: none; font-size: 9px; line-height: 1.4; margin: 0; }
         .propuesta-list li { margin-bottom: 3px; }
-        .exp-box { display: inline-block; border: 1px solid #000; width: 40px; height: 20px; text-align: center; margin: 0 4px; padding-top: 2px; font-weight: bold; }
-        .cv-date-box { display: inline-block; border: 1px solid #000; width: 30px; height: 20px; text-align: center; vertical-align: middle; padding-top: 2px; margin-right: 4px; }
+        .exp-box { display: inline-block; border: 1.5px solid #000; min-width: 44px; padding: 3px 12px; text-align: center; margin: 0 4px; font-weight: bold; font-size: 12px; vertical-align: middle; background: #fff; }
+        .cv-date-box { display: inline-block; border: 1.5px solid #000; min-width: 40px; padding: 3px 8px; text-align: center; vertical-align: middle; font-weight: bold; background: #fff; }
         .editable-cell { padding: 0 !important; position: relative; min-height: 28px; height: auto !important; }
         .print-input { width: 100%; min-height: 28px; border: none; outline: none; background: #ffffff; font-family: inherit; font-size: inherit; text-align: center; font-weight: bold; box-sizing: border-box; padding: 4px 6px; line-height: 1.5; height: auto; }
         .print-input:focus { background: #fffde7; }
@@ -1239,23 +1239,42 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
                 <tr>
                   <td className="fb">LUGAR DE NACIMIENTO:</td>
                   <td className="dd">{detalle.locador?.lugar_nacimiento || '—'}</td>
-                  <td className="fb tc" rowSpan={2} style={{ verticalAlign: 'middle' }}>FECHA DE NACIMIENTO:</td>
-                  <td className="tc" rowSpan={2} style={{ verticalAlign: 'middle' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
-                      {['DIA', 'MES', 'AÑO'].map((lbl, i) => (
-                        <div key={i}>
-                          <div className="cv-date-box dd fb">
-                            {detalle.locador?.fecha_nacimiento
-                              ? (i === 0 ? new Date(detalle.locador?.fecha_nacimiento).getDate() : i === 1 ? new Date(detalle.locador?.fecha_nacimiento).getMonth() + 1 : new Date(detalle.locador?.fecha_nacimiento).getFullYear())
-                              : ''}
-                          </div>
-                          <div style={{ fontSize: 8, textAlign: 'center' }}>{lbl}</div>
+                  <td className="fb">ESTADO CIVIL:</td>
+                  <td className="dd">{detalle.locador?.estado_civil || '—'}</td>
+                </tr>
+                <tr>
+                  <td className="fb" style={{ verticalAlign: 'middle' }}>FECHA DE NACIMIENTO:</td>
+                  <td colSpan={3} className="dd" style={{ padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
+                      {[
+                        { lbl: 'DÍA', val: detalle.locador?.fecha_nacimiento ? String(new Date(detalle.locador?.fecha_nacimiento).getDate()).padStart(2, '0') : '—' },
+                        { lbl: 'MES', val: detalle.locador?.fecha_nacimiento ? String(new Date(detalle.locador?.fecha_nacimiento).getMonth() + 1).padStart(2, '0') : '—' },
+                        { lbl: 'AÑO', val: detalle.locador?.fecha_nacimiento ? String(new Date(detalle.locador?.fecha_nacimiento).getFullYear()) : '—' },
+                      ].map(({ lbl, val }) => (
+                        <div key={lbl} style={{ textAlign: 'center' }}>
+                          <div style={{
+                            border: '1.5px solid #000',
+                            minWidth: '50px',
+                            padding: '6px 12px',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '13px',
+                            background: '#fff',
+                            lineHeight: 1.4,
+                          }}>{val}</div>
+                          <div style={{
+                            fontSize: '9px',
+                            fontWeight: 'bold',
+                            color: '#333',
+                            textAlign: 'center',
+                            marginTop: '6px',
+                            letterSpacing: '0.05em',
+                          }}>{lbl}</div>
                         </div>
                       ))}
                     </div>
                   </td>
                 </tr>
-                <tr><td className="fb">ESTADO CIVIL:</td><td className="dd">{detalle.locador?.estado_civil}</td></tr>
                 <tr><td className="fb">DNI / CE Nº:</td><td colSpan={3} className="dd fb">{detalle.locador?.numero_documento}</td></tr>
                 <tr><td className="fb">RUC:</td><td colSpan={3} className="dd fb">{detalle.locador?.ruc}</td></tr>
                 <tr><td className="ehl" colSpan={4}>DIRECCIÓN Y MEDIOS DE CONTACTO</td></tr>
@@ -1340,11 +1359,11 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
             <table className="excel-table">
               <tbody>
                 <tr><td className="ehl" colSpan={7}>EXPERIENCIA LABORAL (GENERAL)</td></tr>
-                <tr><td colSpan={7} style={{ fontSize: 10 }}>
+                <tr><td colSpan={7} style={{ fontSize: 10, padding: '10px 12px' }}>
                   Experiencia acumulada:&nbsp;
-                  <span className="exp-box dd">{totalGen.years}</span> AÑOS
-                  <span className="exp-box dd">{totalGen.months}</span> MESES
-                  <span className="exp-box dd">{totalGen.days}</span> DIAS
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalGen.years}</span> AÑOS
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalGen.months}</span> MESES
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalGen.days}</span> DIAS
                 </td></tr>
                 <tr>{['N°', 'Entidad/Empresa', 'Cargo', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 'Tiempo'].map((h) => <td key={h} className="eh" style={{ fontSize: 9 }}>{h}</td>)}</tr>
                 {cvExpGen.map((e, i) => (
@@ -1371,11 +1390,11 @@ export default function TdrDetailPage({ user, tdr, onNavigate }: TdrDetailPagePr
             <table className="excel-table">
               <tbody>
                 <tr><td className="ehl" colSpan={7}>EXPERIENCIA ESPECÍFICA (EN EL SERVICIO REQUERIDO)</td></tr>
-                <tr><td colSpan={7} style={{ fontSize: 10 }}>
+                <tr><td colSpan={7} style={{ fontSize: 10, padding: '10px 12px' }}>
                   Experiencia acumulada:&nbsp;
-                  <span className="exp-box dd">{totalEsp.years}</span> AÑOS
-                  <span className="exp-box dd">{totalEsp.months}</span> MESES
-                  <span className="exp-box dd">{totalEsp.days}</span> DIAS
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalEsp.years}</span> AÑOS
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalEsp.months}</span> MESES
+                  <span style={{ display: 'inline-block', border: '1.5px solid #000', padding: '3px 12px', minWidth: '44px', textAlign: 'center', fontWeight: 'bold', margin: '0 2px', fontSize: 12, background: '#fff' }}>{totalEsp.days}</span> DIAS
                 </td></tr>
                 <tr>{['N°', 'Entidad/Empresa', 'Cargo', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 'Tiempo'].map((h) => <td key={h} className="eh" style={{ fontSize: 9 }}>{h}</td>)}</tr>
                 {cvExpEsp.map((e, i) => (
