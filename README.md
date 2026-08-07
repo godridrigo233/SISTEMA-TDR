@@ -169,13 +169,3 @@ Las contribuciones son bienvenidas. Si deseas colaborar:
 3. Realiza tus modificaciones.
 4. Envía un pull request con una descripción clara.
 
-## � Próximos pasos sugeridos
-
-- Agregar capturas de pantalla reales del sistema.
-- Incluir una demo en vivo o un entorno de pruebas.
-- Mejorar la documentación de módulos y flujos internos.
-- Añadir pruebas automatizadas para frontend y backend.
-
-## �📄 Nota
-
-Este proyecto sigue en desarrollo y puede requerir ajustes según el entorno de despliegue, configuración de base de datos y credenciales externas.
