@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 
 if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET no está definido en las variables de entorno');
+  console.warn('[auth] ADVERTENCIA: JWT_SECRET no está definido en .env, usando valor por defecto para desarrollo');
 }
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production';
 
 function verifyToken(req, res, next) {
   const header = req.headers['authorization'];
